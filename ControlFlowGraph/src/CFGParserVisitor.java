@@ -208,6 +208,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 		Node currentNode = new Node();
 		currentNode.setLineNumber(ctx.start.getLine());
 		currentNode.setLineString(lineString);
+		currentNode.setType(3);
 		currentNode.printNode();
 
 		visitChildren(ctx);// Probably remove this
@@ -231,6 +232,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 		Node currentNode = new Node();
 		currentNode.setLineNumber(ctx.start.getLine());
 		currentNode.setLineString(ctx.getText() + ";");
+		currentNode.setType(1);
 		currentNode.printNode();
 
 		visitChildren(ctx);// Probably remove this
