@@ -9,12 +9,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 		CFGParserVisitor.tokens = (CommonTokenStream) parser.getTokenStream();
 	}
 
-
-
 	public static void printAllTokens() {
-		// TerminalNode semi = (TerminalNode) ctx.getChild(0); // adjust as
-		// needed
-		// for your impl.
 		Token tok = (Token) CFGParserVisitor.tokens.get(0);
 		int idx = tok.getTokenIndex();
 		while (tok.getType() != -1) {
@@ -87,6 +82,75 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 	 * </p>
 	 */
 	@Override
+	public Node visitForStmt(JavaParser.ForStmtContext ctx) {
+
+		Node currentNode = new Node();
+		currentNode.setLineNumber(ctx.getStart().getLine());
+
+		Token tok = ctx.getStart();
+		int index = tok.getTokenIndex();
+		String lineString = "";
+
+		while (!tok.getText().equals("{")) {
+			lineString += tok.getText();
+			lineString += " ";
+			index++;
+			tok = tokens.get(index);
+		}
+		lineString += "{";
+
+		currentNode.setLineString(lineString);
+		currentNode.setType(2);
+		currentNode.printNode();
+
+		visitChildren(ctx);
+
+		return currentNode;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * The default implementation returns the result of calling
+	 * {@link #visitChildren} on {@code ctx}.
+	 * </p>
+	 */
+	@Override
+	public Node visitWhileStmt(JavaParser.WhileStmtContext ctx) {
+
+		Node currentNode = new Node();
+		currentNode.setLineNumber(ctx.getStart().getLine());
+
+		Token tok = ctx.getStart();
+		int index = tok.getTokenIndex();
+		String lineString = "";
+
+		while (!tok.getText().equals("{")) {
+			lineString += tok.getText();
+			lineString += " ";
+			index++;
+			tok = tokens.get(index);
+		}
+		lineString += "{";
+
+		currentNode.setLineString(lineString);
+		currentNode.setType(2);
+		currentNode.printNode();
+
+		visitChildren(ctx);
+
+		return currentNode;	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * The default implementation returns the result of calling
+	 * {@link #visitChildren} on {@code ctx}.
+	 * </p>
+	 */
+	@Override
 	public Node visitLocalVariableDeclarationStatement(JavaParser.LocalVariableDeclarationStatementContext ctx) {
 		// System.out.println(ctx.getText());
 		// System.out.println("------------------");
@@ -126,8 +190,8 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 	@Override
 	public Node visitReturnStmt(JavaParser.ReturnStmtContext ctx) {
 
-		//We do this in order to add spaces to the line strings
-		//Otherwise all the tokens would be together
+		// We do this in order to add spaces to the line strings
+		// Otherwise all the tokens would be together
 		Token tok = ctx.getStart();
 		int index = tok.getTokenIndex();
 		String lineString = "";
@@ -140,7 +204,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 			tok = tokens.get(index);
 		}
 		lineString += ";";
-		
+
 		Node currentNode = new Node();
 		currentNode.setLineNumber(ctx.start.getLine());
 		currentNode.setLineString(lineString);
@@ -166,7 +230,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
 		Node currentNode = new Node();
 		currentNode.setLineNumber(ctx.start.getLine());
-		currentNode.setLineString(ctx.getText()+";");
+		currentNode.setLineString(ctx.getText() + ";");
 		currentNode.printNode();
 
 		visitChildren(ctx);// Probably remove this
