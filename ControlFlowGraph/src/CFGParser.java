@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -13,7 +15,11 @@ public class CFGParser {
 
         JavaParser parser = new JavaParser(tokens);
         ParseTree tree = parser.compilationUnit();
-        String answer = new CFGParserVisitor().visit(tree);
-        System.out.println(answer);
+        ArrayList<Node> nodeList = new ArrayList<Node>();
+        NodeVisitor nodeVisitor = new NodeVisitor(nodeList);
+        nodeVisitor.visit(tree);
+        IfElseNodeVisitor ifElseVisitor = new IfElseNodeVisitor(nodeList);
+        ifElseVisitor.visit(tree);
+        System.out.println(nodeList);
     }
 }
