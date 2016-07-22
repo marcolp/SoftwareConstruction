@@ -19,7 +19,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
   public static void printNodes() {
     for (Node currentNode : allNodes) {
-      currentNode.printNode();
+      System.out.println(currentNode.toString());
     }
   }
 
@@ -30,9 +30,9 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     Collections.sort(allNodes, new Comparator<Node>(){
       @Override
       public int compare(Node node2, Node node1){
-        if(node2.getID() < node1.getID()) return -1;
+        if(node2.getUniqueID() < node1.getUniqueID()) return -1;
         
-        else if(node2.getID() == node1.getID()) return 0;
+        else if(node2.getUniqueID() == node1.getUniqueID()) return 0;
         
         else return 1;
       }
@@ -46,22 +46,8 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
       currentNode = allNodes.get(i);
 
       // If the current node is an IF node
-      if (currentNode.getType() == Node.nodeType.IF) {
+      if (currentNode instanceof IfElseNode) { //this check is very slow
 
-
-
-        /*
-         * Due to the way the visitors are made IF nodes will end up being connected to 3 nodes if
-         * it has an ELSE/ELSE_IF as part of the statement. This has to do with the implementation
-         * of 'visitBlock' and 'visitIfElseStmt' methods.
-         * 
-         * The 'if' node will be linked to the true statement (the inside of the if), the else/else
-         * if node, and whatever is after the ENTIRE if statement (if, else if's, else) in that
-         * particular order.
-         * 
-         * This simply removes the last entry in the connection list in order to remove the wrong
-         * link.
-         */
         if (currentNode.getConnectedTo().size() == 3) {
 
           // Traverse all the inner children (the first child) of each node
@@ -99,7 +85,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
 
       // If the current node is a LOOP node
-      else if (currentNode.getType() == Node.nodeType.LOOP) {
+      else if (currentNode instanceof LoopNode) {
 
         /*
          * Keep track of the current child. The first child will be the LOOP's 'true' child (the
@@ -187,8 +173,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     // Remove the last whitespace in the line string.
     // If the last character is not a ')'
     if (endChar != ")") {
-      if (lineString != null && lineString.length() > 0
-          && lineString.charAt(lineString.length() - 1) == ' ')
+      if (lineString != null && lineString.length() > 0 && lineString.charAt(lineString.length() - 1) == ' ')
         lineString = lineString.substring(0, lineString.length() - 1);
     }
     lineString += endChar;
@@ -234,25 +219,29 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
       lineString += getLineParam(tok, ")");
 
 
-    Node currentNode = new Node();
-    currentNode.setLineNumber(ctx.getStart().getLine());
-    currentNode.setID(ID);
+    int id = ID;
     ID++;
-    currentNode.setLineString(lineString);
+    
+    int lineNumber = ctx.start.getLine();
+     
 
-    if (isElseIf)
-      currentNode.setType(Node.nodeType.ELSE_IF);
-
-    else
-      currentNode.setType(Node.nodeType.IF);
-    currentNode.setDepth(ctx.depth());
-    currentNode.addConnected(visit(ctx.statement(0)));
+ 
+    Node currentNode;
+    Node trueBranch = visit(ctx.statement(0));
     if (ctx.statement().size() > 1) {
-      Node temp = visit(ctx.statement(1));
-      currentNode.addConnected(temp);
+      Node falseBranch = visit(ctx.statement(1));
+      currentNode = new IfElseNode(lineString, lineNumber, id, trueBranch, falseBranch);    
+    }
+    
+    else{
+      currentNode = new IfElseNode(lineString, lineNumber, id, trueBranch);    
     }
 
+    if (isElseIf){
+      ((IfElseNode) currentNode).setElseIf(true);
+    }
 
+   
     // visitChildren(ctx);
 
     // currentNode.printNode();
@@ -272,51 +261,17 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
   @Override
   public Node visitForStmt(JavaParser.ForStmtContext ctx) {
 
-    Node currentNode = new Node();
-    currentNode.setLineNumber(ctx.getStart().getLine());
-
+    int id = ID;
+    ID++;
+    
+    int lineNumber = ctx.start.getLine();
+    
     Token tok = ctx.getStart();
     String lineString = getLineParam(tok, "{");
-
-    currentNode.setID(ID);
-    ID++;
-    currentNode.setLineString(lineString);
-    currentNode.setType(Node.nodeType.LOOP);
-    currentNode.setDepth(ctx.depth());
-    currentNode.addConnected(visit(ctx.statement()));
-
-    allNodes.add(currentNode);
-
-    return currentNode;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * <p>
-   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
-   * </p>
-   */
-  @Override
-  public Node visitLocalVariableDeclarationStatement(
-      JavaParser.LocalVariableDeclarationStatementContext ctx) {
-    // System.out.println(ctx.getText());
-    // System.out.println("------------------");
-    // System.out.println("This is the visit children return:
-    // "+visitChildren(ctx).getLineNumber());
-    Token tok = ctx.getStart();
-    String lineString = getLineParam(tok, ";");
-
-    Node currentNode = new Node();
-
-    currentNode.setID(ID);
-    ID++;
-    currentNode.setLineNumber(ctx.start.getLine());
-    currentNode.setLineString(lineString);
-    currentNode.setType(Node.nodeType.NORMAL);
-    currentNode.setDepth(ctx.depth());
-
-    // currentNode.printNode();
+    Node beginLoop = visit(ctx.statement());
+    
+    LoopNode currentNode = new LoopNode(lineString, lineNumber, id);
+    currentNode.setBeginLoopNode(beginLoop);
 
     allNodes.add(currentNode);
 
@@ -333,17 +288,17 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
   @Override
   public Node visitWhileStmt(JavaParser.WhileStmtContext ctx) {
 
-    Node currentNode = new Node();
-    currentNode.setLineNumber(ctx.getStart().getLine());
-
+    int id = ID;
+    ID++;
+    
+    int lineNumber = ctx.start.getLine();
+    
     Token tok = ctx.getStart();
     String lineString = getLineParam(tok, "{");
+    Node beginLoop = visit(ctx.statement());
 
-    currentNode.setID(ID);
-    ID++;
-    currentNode.setLineString(lineString);
-    currentNode.setType(Node.nodeType.LOOP);
-    currentNode.setDepth(ctx.depth());
+    LoopNode currentNode = new LoopNode(lineString, lineNumber, id);
+    currentNode.setBeginLoopNode(beginLoop);
 
     allNodes.add(currentNode);
 
@@ -358,22 +313,50 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
    * </p>
    */
   @Override
+  public Node visitLocalVariableDeclarationStatement(JavaParser.LocalVariableDeclarationStatementContext ctx) {
+  
+    int id = ID;
+    ID++;
+    
+    int lineNumber = ctx.start.getLine();
+    
+    Token tok = ctx.getStart();
+    String lineString = getLineParam(tok, ";");
+  
+    Node currentNode = new SingleStatementNode(lineString, lineNumber, id);
+  
+    // currentNode.printNode();
+    
+    visitChildren(ctx); //probably remove this.
+  
+    allNodes.add(currentNode);
+  
+    return currentNode;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
+   * </p>
+   */
+  @Override
   public Node visitAssertStmt(JavaParser.AssertStmtContext ctx) {
 
-    Token tok = ctx.getStart();
-    String lineString = getLineParam(tok, "{");
-
-    Node currentNode = new Node();
-    currentNode.setID(ID);
+    int id = ID;
     ID++;
-    currentNode.setLineNumber(ctx.start.getLine());
-    currentNode.setLineString(lineString);
-    currentNode.setType(Node.nodeType.NORMAL);
-    currentNode.setDepth(ctx.depth());
+    
+    int lineNumber = ctx.start.getLine();
+    
+    Token tok = ctx.getStart();
+    String lineString = getLineParam(tok, ";");
+
+    Node currentNode = new SingleStatementNode(lineString, lineNumber, id);
 
     // currentNode.printNode();
 
-    visitChildren(ctx);// Probably remove this
+    visitChildren(ctx);  // Probably remove this
 
     allNodes.add(currentNode);
 
@@ -391,18 +374,15 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
   @Override
   public Node visitReturnStmt(JavaParser.ReturnStmtContext ctx) {
 
-    // We do this in order to add spaces to the line strings
-    // Otherwise all the tokens would be together
-    Token tok = ctx.getStart();
-    String lineString = getLineParam(tok, "{");
-
-    Node currentNode = new Node();
-    currentNode.setID(ID);
+    int id = ID;
     ID++;
-    currentNode.setLineNumber(ctx.start.getLine());
-    currentNode.setLineString(lineString);
-    currentNode.setType(Node.nodeType.NORMAL);
-    currentNode.setDepth(ctx.depth());
+    
+    int lineNumber = ctx.start.getLine();
+    
+    Token tok = ctx.getStart();
+    String lineString = getLineParam(tok, ";");
+
+    Node currentNode = new SingleStatementNode(lineString, lineNumber, id);
 
     // currentNode.printNode();
 
@@ -425,15 +405,13 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     // System.out.println(ctx.getText());
     // System.out.println("------------------");
 
-    Node currentNode = new Node();
-    currentNode.setID(ID);
+    int id = ID;
     ID++;
-    currentNode.setLineNumber(ctx.start.getLine());
-    currentNode.setLineString(ctx.getText());
-    currentNode.setType(Node.nodeType.NORMAL);
-    currentNode.setDepth(ctx.depth());
-
-    // currentNode.printNode();
+    
+    int lineNumber = ctx.start.getLine();
+    String lineText = ctx.getText();
+    
+    Node currentNode = new SingleStatementNode(lineText, lineNumber, id);
 
     visitChildren(ctx);// Probably remove this
 
@@ -473,19 +451,21 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     ArrayList<Node> childNodes = new ArrayList<Node>();
 
-    Node returnNode = new Node();
     int limit = ctx.getChildCount();
 
     // Traverse the children ignoring the {} children
     // and add the node they return to a list.
     for (int i = 1; i < limit - 1; i++) {
       Node currentNode = new Node();
+      
+      if(i != 1) currentNode.setExitNode(true); //Sibling nodes are possible exit nodes
+      
       currentNode = visit(ctx.getChild(i));
       childNodes.add(currentNode);
     }
 
     for (int k = 0; k < childNodes.size() - 1; k++) {
-      childNodes.get(k).addConnected(childNodes.get(k + 1));
+      childNodes.get(k).setNextNode((childNodes.get(k + 1)));
     }
 
     return childNodes.get(0);
