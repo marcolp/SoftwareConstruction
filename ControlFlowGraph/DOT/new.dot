@@ -1,0 +1,4 @@
+digraph Test{
+	"x = y"-> "if(true)";
+	2 -> 3;
+}

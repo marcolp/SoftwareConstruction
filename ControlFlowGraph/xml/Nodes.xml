@@ -1,0 +1,35 @@
+<gxl>
+	<graph>
+		<node>
+			<id>1</id>
+			<lineNumber>7</lineNumber>
+			<code>int y = 7;</code>
+			<nextNode>2</nextNode>
+		</node>
+		<node>
+			<id>2</id>
+			<lineNumber>8</lineNumber>
+			<code>int z = 7;</code>
+			<nextNode>3</nextNode>
+			<nextNode>4</nextNode>
+		</node>
+		<node>
+			<id>3</id>
+			<lineNumber>10</lineNumber>
+			<code>int n = 7;</code>
+			<nextNode>4</nextNode>
+		</node>
+		<node>
+			<id>4</id>
+			<lineNumber>10</lineNumber>
+			<code>int n = 7;</code>
+			<nextNode>5</nextNode>
+		</node>
+		<node>
+			<id>5</id>
+			<lineNumber>10</lineNumber>
+			<code>int n = 7;</code>
+			<nextNode>1</nextNode>
+		</node>
+	</graph>
+</gxl>
