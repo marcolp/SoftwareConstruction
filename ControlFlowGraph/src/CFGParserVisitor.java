@@ -2,7 +2,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Stack;
 
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Token;
@@ -10,134 +9,184 @@ import org.antlr.v4.runtime.Token;
 public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
   private static CommonTokenStream tokens;
-  private static List<Node> allNodes = new ArrayList<Node>();
+  private List<Node> allNodes = new ArrayList<Node>();
   private static int ID = 0;
 
   public CFGParserVisitor(JavaParser parser) {
     CFGParserVisitor.tokens = (CommonTokenStream) parser.getTokenStream();
   }
 
-  public static void printNodes() {
-    for (Node currentNode : allNodes) {
+  public void printNodes() {
+    for (Node currentNode : this.allNodes) {
       currentNode.printNode();
     }
   }
 
-  public static void linkNodes() {
+  public Node findBreakContinue(Node currentNode, Node loopNode){
 
+    //Inside of the block
+    Node tempNode = currentNode;
+
+
+    //Traverse the inside of the block and search for break/continue nodes
+    while(!tempNode.isBlockEnd()){
+//      if(tempNode.getType() == Node.nodeType.CONTINUE) 
+//        tempNode.getConnectedTo().get(1);0
+    }
+
+    return tempNode;
+
+  }
+  public void linkLoopNode(Node loopNode){
+
+    if(loopNode.getConnectedTo().isEmpty()) return;
+    
+    /*
+     * Keep track of the current child. The first child will be the LOOP's 'true' child (the
+     * inside of the for), which is the first child in the list (index 0)
+     */
+    Node childNode = loopNode.getConnectedTo().get(0);
+
+    // The idea is to traverse all the children until we reach the last one 
+    // in the block and link it to the original loop node
+    while (!childNode.isBlockEnd()) {
+
+      /*
+       * If the child node is a continue node then remove its previous
+       * connection because it would be connected to the next node in the
+       * block and link it back to the original node
+       */
+      if(childNode.getType() == Node.nodeType.CONTINUE){
+        childNode.removeConnected();
+        childNode.addConnected(loopNode);
+      }
+
+      /*
+       * If the child node is a break node then remove its previous
+       * connection because it would be connected to the next node in the
+       * block and link it to the outside of the loop node
+       */
+      else if(childNode.getType() == Node.nodeType.BREAK){
+        childNode.removeConnected();
+        childNode.addConnected(loopNode.getConnectedTo().get(1));
+      }
+
+      if (childNode.getConnectedTo().size() > 1){
+        findBreakContinue(childNode, loopNode);
+        childNode = childNode.getConnectedTo().get(1);
+      }
+      else
+        childNode = childNode.getConnectedTo().get(0);
+    }
+
+    //Link the last block node to the loop node 
+    childNode.addConnected(loopNode);
+  }
+
+  public void linkElseIfNode(Node elseNode){
+
+    // Find the last OUTER child, what's outside of the else if (another else if, an else, etc)
+    // and link exit node of the current Node to it.
+    Node exitNode = elseNode.getExitNode();
+    Node lastOuterChild = elseNode.getLastOuterChild();
+    
+    // If the outer child is 
+    if(lastOuterChild == null) {
+      elseNode.addConnected(exitNode);
+      return;
+    }
+    
+    lastOuterChild.addConnected(exitNode);
+  }
+
+  /**
+   * Due to the way the visitors are made, IF nodes will end up being connected to 3 nodes if
+   * it has an ELSE/ELSE_IF as part of the statement. This has to do with the implementation
+   * of 'visitBlock' and 'visitIfElseStmt' methods.
+   * 
+   * The 'if' node will be linked to the true statement (the inside of the if), the ELSE/ELSE_IF
+   * node, and whatever is after the ENTIRE IF statement (if, else if's, else) in that
+   * particular order.
+   * 
+   * This simply removes the last entry in the connection list in order to remove the wrong
+   * link.
+   *
+   * @param ifNode
+   */
+  public void linkIfNode(Node ifNode){
+
+    // Traverse all the inner children (the first child) of each node
+    // in order to reach the last node inside the IF
+    Node lastInnerChild = ifNode.getLastInnerChild();
+
+    //connect that last child to the outside of the if
+    int lastLinkIndex = ifNode.getConnectedTo().size()-1; //The index of the last child (the exit node index)
+    Node exitNode = ifNode.getConnectedTo().get(lastLinkIndex);
+    exitNode.setExitNode(true);
+    lastInnerChild.addConnected(exitNode);
+
+
+    if (ifNode.getConnectedTo().size() == 3) {
+
+      // If the child is an ELSE_IF node then add the exit node to the last child in its block
+//      if (ifNode.getConnectedTo().get(1).getType() == Node.nodeType.ELSE_IF) {
+        Node innerTemp = ifNode.getConnectedTo().get(1).getLastInnerChild();
+        innerTemp.addConnected(exitNode);
+//      }
+      
+      //If it is not an ELSE_IF node then it is for sure an ELSE node
+//      else{
+//        Node innerTemp = ifNode.getConnectedTo().get(1).getLastInnerChild();
+//        innerTemp.addConnected(exitNode);
+//
+//      }
+        ifNode.removeConnected();
+    }
+
+  }
+
+  public void sortNodes(){
     //Sort all the nodes by their unique ID, which identifies in which order they 
     //are created.
-    Collections.sort(allNodes, new Comparator<Node>(){
+    Collections.sort(this.allNodes, new Comparator<Node>(){
       @Override
       public int compare(Node node2, Node node1){
         if(node2.getID() < node1.getID()) return -1;
-        
+
         else if(node2.getID() == node1.getID()) return 0;
-        
+
         else return 1;
       }
     });
-    
+  }
+
+  public void linkNodes() {
+
+    sortNodes();
+
     // Traverse all the current nodes
-    for (int i = 0; i < allNodes.size(); i++) {
+    for (int i = 0; i < this.allNodes.size(); i++) {
 
       // Make a temporary node to keep track as we traverse
-      Node currentNode = new Node();
-      currentNode = allNodes.get(i);
+      Node currentNode = this.allNodes.get(i);
 
       // If the current node is an IF node
       if (currentNode.getType() == Node.nodeType.IF) {
-
-
-
-        /*
-         * Due to the way the visitors are made IF nodes will end up being connected to 3 nodes if
-         * it has an ELSE/ELSE_IF as part of the statement. This has to do with the implementation
-         * of 'visitBlock' and 'visitIfElseStmt' methods.
-         * 
-         * The 'if' node will be linked to the true statement (the inside of the if), the else/else
-         * if node, and whatever is after the ENTIRE if statement (if, else if's, else) in that
-         * particular order.
-         * 
-         * This simply removes the last entry in the connection list in order to remove the wrong
-         * link.
-         */
-        if (currentNode.getConnectedTo().size() == 3) {
-
-          // Traverse all the inner children (the first child) of each node
-          // in order to reach the last node inside the if
-          Node temp = new Node();
-          temp = currentNode.getLastInnerChild();
-          
-          //connect that last child to the outside of the if
-          Node exitNode = currentNode.getConnectedTo().get(2);
-          exitNode.setExitNode(true);
-//          temp.addConnected(currentNode.getConnectedTo().get(2));
-          temp.addConnected(exitNode);
-          
-          //Do the same with the inner of the ELSE_IF node
-          if (currentNode.getConnectedTo().get(1).getType() == Node.nodeType.ELSE_IF) {
-            Node innerTemp = new Node();
-            innerTemp = currentNode.getConnectedTo().get(1).getLastInnerChild();
-            innerTemp.addConnected(exitNode);
-          }
-
-          currentNode.removeConnected();
-          currentNode.getExitNode();
-        }
-
+        linkIfNode(currentNode);
       }
+
       // If the current node is an ELSE_IF instance
       else if (currentNode.getType() == Node.nodeType.ELSE_IF) {
-        
-        //Find the last OUTER child, what's outside of the else if (another else if, an else, etc)
-        // and link exit node of the current Node to it.
-        Node exitNode = currentNode.getExitNode();
-        Node lastOuterChild = currentNode.getLastOuterChild();
-        lastOuterChild.addConnected(exitNode);
+        linkElseIfNode(currentNode);
       }
-
 
       // If the current node is a LOOP node
       else if (currentNode.getType() == Node.nodeType.LOOP) {
+        linkLoopNode(currentNode);
+      }
 
-        /*
-         * Keep track of the current child. The first child will be the LOOP's 'true' child (the
-         * inside of the for), which is the first child in the list (index 0)
-         */
-        Node childNode = new Node();
-        childNode = currentNode.getConnectedTo().get(0);
-
-        // The idea is to traverse all the children until we reach the last one and link it to the
-        // original loop node
-        while (childNode != null) {
-
-          /*
-           * If the current child has no connections then it means it is the last child
-           * 
-           * @TODO What happens when the last child is an IF or a LOOP?
-           */
-          if (childNode.getConnectedTo().size() == 0) {
-            childNode.addConnected(currentNode);
-            break;
-          }
-
-          /*
-           * If the current child has more than 1 child, visit the second one because this means
-           * that it is a LOOP or IF statement. In which case the first child is the inside of the
-           * block which we don't want.
-           */
-          if (childNode.getConnectedTo().size() > 1)
-            childNode = childNode.getConnectedTo().get(1);
-
-          // Otherwise get the first child.
-          else
-            childNode = childNode.getConnectedTo().get(0);
-
-        }
-
-        // Otherwise our node is a NORMAL node
-      } else {
+      // Otherwise our node is a NORMAL node
+      else {
         /*
          * @TODO ??????????????
          */
@@ -156,7 +205,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
       System.out.println("This is the token type: " + tok.getType());
       System.out.println("This is the line number: " + tok.getLine());
       System.out
-          .println("This is the token start position in line: " + tok.getCharPositionInLine());
+      .println("This is the token start position in line: " + tok.getCharPositionInLine());
       System.out.println(tok);
       idx++;
       tok = tokens.get(idx);
@@ -174,6 +223,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
    * @return lineString - The tokens separated by whitespace
    */
   public String getLineParam(Token tok, String endChar) {
+
     int index = tok.getTokenIndex();
     String lineString = "";
 
@@ -223,10 +273,11 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
         lineString = "else ";
       isElseIf = true;
     }
+
     // If the statement's first children is a block statement (meaning the
-    // 'if' is using '{}') then we stop looking for tokens at the opening {
-    if (ctx.statement(0).children.get(0).getClass().getName()
-        .equalsIgnoreCase("JavaParser$BlockContext"))
+    // 'if' is using '{}') then we stop looking for tokens at the opening '{'
+    String childNodeClass = ctx.statement(0).children.get(0).getClass().getName();
+    if (childNodeClass.equalsIgnoreCase("JavaParser$BlockContext")) 
       lineString += getLineParam(tok, "{");
 
     // Otherwise, stop looking at a parenthesis
@@ -245,6 +296,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     else
       currentNode.setType(Node.nodeType.IF);
+
     currentNode.setDepth(ctx.depth());
     currentNode.addConnected(visit(ctx.statement(0)));
     if (ctx.statement().size() > 1) {
@@ -298,12 +350,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
    * </p>
    */
   @Override
-  public Node visitLocalVariableDeclarationStatement(
-      JavaParser.LocalVariableDeclarationStatementContext ctx) {
-    // System.out.println(ctx.getText());
-    // System.out.println("------------------");
-    // System.out.println("This is the visit children return:
-    // "+visitChildren(ctx).getLineNumber());
+  public Node visitLocalVariableDeclarationStatement(JavaParser.LocalVariableDeclarationStatementContext ctx) {
     Token tok = ctx.getStart();
     String lineString = getLineParam(tok, ";");
 
@@ -380,6 +427,31 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     return currentNode;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   */
+  @Override public Node visitSemiStmt(JavaParser.SemiStmtContext ctx) {  // We do this in order to add spaces to the line strings
+    // Otherwise all the tokens would be together
+   
+    Node currentNode = new Node();
+    currentNode.setID(ID);
+    ID++;
+    currentNode.setLineNumber(ctx.start.getLine());
+    currentNode.setLineString(ctx.getText());
+    currentNode.setType(Node.nodeType.NORMAL);
+    currentNode.setDepth(ctx.depth());
+
+    // currentNode.printNode();
+
+    visitChildren(ctx);// Probably remove this
+
+    allNodes.add(currentNode);
+
+    return currentNode;
+    }
 
   /**
    * {@inheritDoc}
@@ -394,7 +466,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     // We do this in order to add spaces to the line strings
     // Otherwise all the tokens would be together
     Token tok = ctx.getStart();
-    String lineString = getLineParam(tok, "{");
+    String lineString = getLineParam(tok, ";");
 
     Node currentNode = new Node();
     currentNode.setID(ID);
@@ -435,7 +507,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     // currentNode.printNode();
 
-    visitChildren(ctx);// Probably remove this
+    //    visitChildren(ctx);// Probably remove this
 
     allNodes.add(currentNode);
 
@@ -473,7 +545,6 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     ArrayList<Node> childNodes = new ArrayList<Node>();
 
-    Node returnNode = new Node();
     int limit = ctx.getChildCount();
 
     // Traverse the children ignoring the {} children
@@ -488,19 +559,8 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
       childNodes.get(k).addConnected(childNodes.get(k + 1));
     }
 
+    childNodes.get(childNodes.size()-1).setBlockEnd(true); //The last child is at the end of the {} block
+
     return childNodes.get(0);
   }
-
-  /**
-   * {@inheritDoc}
-   *
-   * <p>
-   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
-   * </p>
-   */
-  @Override
-  public Node visitExpression(JavaParser.ExpressionContext ctx) {
-    return visitChildren(ctx);
-  }
-
 }

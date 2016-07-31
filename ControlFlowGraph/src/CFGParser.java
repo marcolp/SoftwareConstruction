@@ -20,9 +20,9 @@ public class CFGParser {
         visitor.visit(tree);
         
         
-        CFGParserVisitor.linkNodes();
+        visitor.linkNodes();
         
-        CFGParserVisitor.printNodes();
+        visitor.printNodes();
 
 //        CFGParserVisitor.printAllTokens();
         
