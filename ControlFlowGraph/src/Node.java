@@ -3,7 +3,7 @@ import java.util.ArrayList;
 public class Node {
 
   public enum nodeType {
-    IF, NORMAL, LOOP, ELSE_IF, SWITCH, BREAK, CONTINUE;
+    IF, NORMAL, LOOP, ELSE_IF, SWITCH, BREAK, CONTINUE, TAG;
   }
 
   private int ID;
@@ -116,7 +116,7 @@ public class Node {
     System.out.println("This node's line Stirng is \"" + lineString + "\"");
     System.out.println("This node's type is " + this.type);
     // System.out.println("This node's antlr depth is: "+ this.antlrDepth);
-    System.out.println("This node's isExitNode value: "+this.isExitNode);
+//    System.out.println("This node's isExitNode value: "+this.isExitNode);
     if (!connectedTo.isEmpty()) {
       for (Node currentNode : connectedTo) {
         if (currentNode != null)

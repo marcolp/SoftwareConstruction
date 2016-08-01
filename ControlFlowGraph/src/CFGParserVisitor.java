@@ -18,6 +18,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
   private Node breakableNode; //Nodes that can contain a break/continue node (e.g. loops, switches)
   private static CommonTokenStream tokens;
   private List<Node> allNodes = new ArrayList<Node>();
+  private List<Node> labels = new ArrayList<Node>();
   private static int ID = 0;
 
   public CFGParserVisitor(JavaParser parser) {
@@ -31,12 +32,51 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
   }
 
   public void linkBreakNode(Node breakNode){
-    breakNode.getConnectedTo().clear();
-    breakNode.addConnected(breakableNode.getConnectedTo().get(1));
+    breakNode.getConnectedTo().clear(); //Previous linkage is wrong (unsure where it is being done)
+    
+    //If the BREAK node's length is greater than 6 which is 
+    //the size of "break:" then it is a labeled break
+    String breakString = breakNode.getLineString();
+    if(breakString.length() > 6){
+      String label = breakString.substring(6, breakString.length()-1);
+      
+      //Look for a label that has the same string
+      for(int i = 0; i < labels.size(); i++){
+        Node currentLabel = labels.get(i);
+        
+        //Link the current break node to whatever this label is linked to
+        if(currentLabel.getLineString().equals(label+":")){
+          breakNode.addConnected(currentLabel.getConnectedTo().get(0));
+        }
+      }
+    }
+    
+    else
+      breakNode.addConnected(breakableNode.getConnectedTo().get(1));
   }
 
   public void linkContinueNode(Node continueNode){
-    continueNode.getConnectedTo().clear();
+    continueNode.getConnectedTo().clear(); //Previous linkage is wrong (unsure where it is being done)
+    
+    //If the CONTINUE node's length is greater than 9 which is 
+    //the size of "continue:" then it is a labeled continue
+    String breakString = continueNode.getLineString();
+    if(breakString.length() > 9){
+      String label = breakString.substring(9, breakString.length()-1);
+      
+      //Look for a label that has the same string
+      for(int i = 0; i < labels.size(); i++){
+        Node currentLabel = labels.get(i);
+        
+        //Link the current break node to whatever this label is linked to
+        if(currentLabel.getLineString().equals(label+":")){
+          continueNode.addConnected(currentLabel.getConnectedTo().get(0));
+        }
+      }
+    }
+    
+    else
+    
     continueNode.addConnected(breakableNode);
   }
 
@@ -126,7 +166,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     Node exitNode = switchNode.getConnectedTo().get(lastLinkIndex);
     exitNode.setExitNode(true);
   }
-  
+
   public void sortNodes(){
     //Sort all the nodes by their unique ID, which identifies in which order they 
     //are created.
@@ -256,7 +296,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     Boolean isElseIf = false;
 
-//    Token tok = ctx.getStart();
+    //    Token tok = ctx.getStart();
     String lineString = "";
 
     // If the parent context was an 'IfElseStmtContext' then this is an else instance
@@ -448,7 +488,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     return currentNode;
   }
 
-  
+
   /**
    * {@inheritDoc}
    *
@@ -530,7 +570,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     return currentNode;
   }
 
-  
+
   /**
    * {@inheritDoc}
    *
@@ -704,6 +744,33 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     return currentNode;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   */
+  @Override
+  public Node visitIdStmt(JavaParser.IdStmtContext ctx) { 
+
+    //This context is for tags
+
+    Node currentNode = new Node();
+    currentNode.setID(-ID);
+
+    currentNode.setLineNumber(ctx.start.getLine());
+    currentNode.setLineString(ctx.Identifier().getText() + ":");
+    currentNode.setType(Node.nodeType.TAG);
+    currentNode.setDepth(ctx.depth());
+
+    // currentNode.printNode();
+
+    currentNode.addConnected(visit(ctx.statement()));
+
+    labels.add(currentNode);
+
+    return currentNode;
+  }
 
   /**
    * This method is a helper method to avoid using returnChildren() in order to return a Node.
@@ -747,7 +814,21 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     }
 
     for (int k = 0; k < childNodes.size() - 1; k++) {
-      childNodes.get(k).addConnected(childNodes.get(k + 1));
+
+      Node currentNode = childNodes.get(k);
+      Node nextNode = childNodes.get(k+1);
+
+      if(nextNode.getType() == Node.nodeType.TAG){
+        currentNode.addConnected(nextNode.getConnectedTo().get(0));
+        continue;
+      }
+      
+      //Dont link BREAKS or CONTINUE nodes to whatever is next
+      if(currentNode.getType() == Node.nodeType.BREAK || currentNode.getType() == Node.nodeType.CONTINUE) {
+        continue;
+      }
+
+      currentNode.addConnected(nextNode);
     }
 
     childNodes.get(childNodes.size()-1).setBlockEnd(true); //The last child is at the end of the {} block
