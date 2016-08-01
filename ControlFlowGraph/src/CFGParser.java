@@ -5,7 +5,7 @@ public class CFGParser {
 	public static void main( String[] args) throws Exception 
     {
 
-        ANTLRInputStream input = new ANTLRFileStream("SwitchDemoFallThrough.java");
+        ANTLRInputStream input = new ANTLRFileStream("BreakDemo.java");
 
         JavaLexer lexer = new JavaLexer(input);
 

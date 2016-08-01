@@ -3,7 +3,7 @@ import java.util.ArrayList;
 public class Node {
 
   public enum nodeType {
-    IF, NORMAL, LOOP, ELSE_IF, ELSE, BREAK, CONTINUE;
+    IF, NORMAL, LOOP, ELSE_IF, SWITCH, BREAK, CONTINUE;
   }
 
   private int ID;
@@ -116,7 +116,7 @@ public class Node {
     System.out.println("This node's line Stirng is \"" + lineString + "\"");
     System.out.println("This node's type is " + this.type);
     // System.out.println("This node's antlr depth is: "+ this.antlrDepth);
-    //    System.out.println("This node's isExitNode value: "+this.isExitNode);
+    System.out.println("This node's isExitNode value: "+this.isExitNode);
     if (!connectedTo.isEmpty()) {
       for (Node currentNode : connectedTo) {
         if (currentNode != null)
@@ -133,7 +133,7 @@ public class Node {
   public Node getLastInnerChild() {
 
     if (this.connectedTo.isEmpty()){
-//      System.out.println("Trying to traverse a node with no children");
+      //      System.out.println("Trying to traverse a node with no children");
       return this;
     }
 
@@ -167,9 +167,9 @@ public class Node {
       System.out.println("Trying to traverse a node with not enough children");
       return null;
     }
-    
+
     return currentChildNode.getLastInnerChild();
-    
+
   }
 
 
@@ -190,9 +190,10 @@ public class Node {
 
       else
         currentNode = currentNode.getConnectedTo().get(0);
-//      currentNode = currentNode.getConnectedTo().get(0);
+      //      currentNode = currentNode.getConnectedTo().get(0);
     }
 
     return currentNode;
   }
+  
 }

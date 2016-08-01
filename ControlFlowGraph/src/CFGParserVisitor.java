@@ -1,3 +1,10 @@
+/*
+ * @TODO Missing try-catch statement nodes
+ * @TODO Missing labeled continues/breaks
+ * @TODO Missing multiple CFG Functionality
+ * @TODO Redo removeConnected to specific removal
+ */
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -8,6 +15,7 @@ import org.antlr.v4.runtime.Token;
 
 public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
+  private Node breakableNode; //Nodes that can contain a break/continue node (e.g. loops, switches)
   private static CommonTokenStream tokens;
   private List<Node> allNodes = new ArrayList<Node>();
   private static int ID = 0;
@@ -22,21 +30,16 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     }
   }
 
-  public Node findBreakContinue(Node currentNode, Node loopNode){
-
-    //Inside of the block
-    Node tempNode = currentNode;
-
-
-    //Traverse the inside of the block and search for break/continue nodes
-    while(!tempNode.isBlockEnd()){
-      //      if(tempNode.getType() == Node.nodeType.CONTINUE) 
-      //        tempNode.getConnectedTo().get(1);0
-    }
-
-    return tempNode;
-
+  public void linkBreakNode(Node breakNode){
+    breakNode.getConnectedTo().clear();
+    breakNode.addConnected(breakableNode.getConnectedTo().get(1));
   }
+
+  public void linkContinueNode(Node continueNode){
+    continueNode.getConnectedTo().clear();
+    continueNode.addConnected(breakableNode);
+  }
+
   public void linkLoopNode(Node loopNode){
 
     if(loopNode.getConnectedTo().isEmpty()) return;
@@ -49,35 +52,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     // The idea is to traverse all the children until we reach the last one 
     // in the block and link it to the original loop node
-    while (!childNode.isBlockEnd()) {
-
-      /*
-       * If the child node is a continue node then remove its previous
-       * connection because it would be connected to the next node in the
-       * block and link it back to the original node
-       */
-      if(childNode.getType() == Node.nodeType.CONTINUE){
-        childNode.removeConnected();
-        childNode.addConnected(loopNode);
-      }
-
-      /*
-       * If the child node is a break node then remove its previous
-       * connection because it would be connected to the next node in the
-       * block and link it to the outside of the loop node
-       */
-      else if(childNode.getType() == Node.nodeType.BREAK){
-        childNode.removeConnected();
-        if(loopNode.getConnectedTo().size() > 1) childNode.addConnected(loopNode.getConnectedTo().get(1));
-      }
-
-      if (childNode.getConnectedTo().size() > 1){
-        findBreakContinue(childNode, loopNode);
-        childNode = childNode.getConnectedTo().get(1);
-      }
-      else
-        childNode = childNode.getConnectedTo().get(0);
-    }
+    childNode = loopNode.getLastInnerChild();
 
     //Link the last block node to the loop node 
     childNode.addConnected(loopNode);
@@ -145,6 +120,13 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
   }
 
+  public void linkSwitchNodes(Node switchNode){
+    //connect that last child to the outside of the if
+    int lastLinkIndex = switchNode.getConnectedTo().size()-1; //The index of the last child (the exit node index)
+    Node exitNode = switchNode.getConnectedTo().get(lastLinkIndex);
+    exitNode.setExitNode(true);
+  }
+  
   public void sortNodes(){
     //Sort all the nodes by their unique ID, which identifies in which order they 
     //are created.
@@ -179,9 +161,27 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
         linkElseIfNode(currentNode);
       }
 
+      // If the current node is an BREAK instance
+      else if (currentNode.getType() == Node.nodeType.BREAK) {
+        linkBreakNode(currentNode);
+      }
+
+      // If the current node is an CONTINUE instance
+      else if (currentNode.getType() == Node.nodeType.CONTINUE) {
+        linkContinueNode(currentNode);
+      }
+
       // If the current node is a LOOP node
       else if (currentNode.getType() == Node.nodeType.LOOP) {
         linkLoopNode(currentNode);
+        breakableNode = currentNode; //////////////////////////
+      }
+
+      // if the current node is a SWITCH node
+      else if (currentNode.getType() == Node.nodeType.SWITCH){
+        linkSwitchNodes(currentNode);
+        breakableNode = currentNode; /////////////////////////////
+        currentNode.removeConnected();
       }
 
       // Otherwise our node is a NORMAL node
@@ -210,11 +210,6 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
       tok = tokens.get(idx);
     }
   }
-
-
-
-
-
 
   /**
    * This method takes in the starting token from a given context and traverses through the tokens
@@ -261,7 +256,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     Boolean isElseIf = false;
 
-    Token tok = ctx.getStart();
+//    Token tok = ctx.getStart();
     String lineString = "";
 
     // If the parent context was an 'IfElseStmtContext' then this is an else instance
@@ -276,15 +271,16 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
       isElseIf = true;
     }
 
-    // If the statement's first children is a block statement (meaning the
-    // 'if' is using '{}') then we stop looking for tokens at the opening '{'
-    String childNodeClass = ctx.statement(0).children.get(0).getClass().getName();
-    if (childNodeClass.equalsIgnoreCase("JavaParser$BlockContext")) 
-      lineString += getLineParam(tok, "{");
-
-    // Otherwise, stop looking at a parenthesis
-    else
-      lineString += getLineParam(tok, ")");
+    //    // If the statement's first children is a block statement (meaning the
+    //    // 'if' is using '{}') then we stop looking for tokens at the opening '{'
+    //    String childNodeClass = ctx.statement(0).children.get(0).getClass().getName();
+    //    if (childNodeClass.equalsIgnoreCase("JavaParser$BlockContext")) 
+    //      lineString += getLineParam(tok, "{");
+    //
+    //    // Otherwise, stop looking at a parenthesis. --- THIS DOESN'T WORK DUE TO MULTIPLE INNER ()
+    //    else
+    //      lineString += getLineParam(tok, ")");
+    lineString +=  "if " + ctx.parExpression().getText();//getLineParam(tok, ")");
 
 
     Node currentNode = new Node();
@@ -316,6 +312,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     return currentNode;
   }
 
+
   /**
    * {@inheritDoc}
    *
@@ -330,19 +327,20 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     currentNode.setLineNumber(ctx.getStart().getLine());
 
     Token tok = ctx.getStart();
-    String lineString = getLineParam(tok, "{");
-
+    String lineString = getLineParam(tok, "{");//This might not work correctly if the condition has an opening parenthesis in it. Is that possible?
     currentNode.setID(ID);
     ID++;
     currentNode.setLineString(lineString);
     currentNode.setType(Node.nodeType.LOOP);
     currentNode.setDepth(ctx.depth());
     currentNode.addConnected(visit(ctx.statement()));
-
     allNodes.add(currentNode);
 
     return currentNode;
   }
+
+
+
 
   /**
    * {@inheritDoc}
@@ -356,7 +354,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     currentNode.setLineNumber(ctx.getStart().getLine());
 
     Token tok = ctx.getStart();
-    String lineString = getLineParam(tok, "{");
+    String lineString = getLineParam(tok, "{");//This might not work correctly if the condition has an opening parenthesis in it. Is that possible?
     lineString += "} while " + ctx.parExpression().getText();
 
 
@@ -374,6 +372,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     return currentNode;
   }
 
+
   /**
    * {@inheritDoc}
    *
@@ -382,8 +381,183 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
    */
   @Override 
   public Node visitSwitchStmt(JavaParser.SwitchStmtContext ctx) {
-    return visitChildren(ctx); 
+
+    Token tok = ctx.getStart();
+    String lineString = "";
+
+    lineString += getLineParam(tok, "{");
+
+    Node currentNode = new Node();
+    currentNode.setLineNumber(ctx.getStart().getLine());
+    currentNode.setID(ID);
+    ID++;
+    currentNode.setLineString(lineString);
+    currentNode.setDepth(ctx.depth());
+    currentNode.setType(Node.nodeType.SWITCH);
+
+
+
+    ArrayList<Node> groupChildren = new ArrayList<Node>();
+    int groupChildrenNum = ctx.switchBlockStatementGroup().size();
+    int groupIndex = 0;
+
+    //Traverse the SwitchBlockStatementGroup children and add them to a list
+    while(groupIndex < groupChildrenNum){
+      Node blockChild = visit(ctx.switchBlockStatementGroup(groupIndex));
+
+      groupChildren.add(blockChild);
+
+      groupIndex++;
+    }
+
+    if(!groupChildren.isEmpty()) 
+      currentNode.addConnected(groupChildren.get(0));
+
+    //Link the children to each other
+    for (int k = 0; k < groupChildren.size() - 1; k++) {
+      groupChildren.get(k).addConnected(groupChildren.get(k + 1));
+    }
+    allNodes.add(currentNode);
+    return currentNode;
+
   }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
+   * </p>
+   */
+  @Override
+  public Node visitWhileStmt(JavaParser.WhileStmtContext ctx) {
+
+    Node currentNode = new Node();
+    currentNode.setLineNumber(ctx.getStart().getLine());
+
+    Token tok = ctx.getStart();
+    String lineString = getLineParam(tok, "{"); //This might not work correctly if the condition has an opening parenthesis in it. Is that possible?
+    currentNode.setID(ID);
+    ID++;
+    currentNode.setLineString(lineString);
+    currentNode.setType(Node.nodeType.LOOP);
+    currentNode.setDepth(ctx.depth());
+    currentNode.addConnected(visit(ctx.statement()));
+    allNodes.add(currentNode);
+
+    return currentNode;
+  }
+
+  
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   */
+  @Override 
+  public Node visitSwitchBlockStatementGroup(JavaParser.SwitchBlockStatementGroupContext ctx) { 
+
+    String caseString = "";
+
+    int labelNum = ctx.switchLabel().size();             //amount of label children    
+    int labelIndex = 0;
+
+    while(labelIndex < labelNum){
+      caseString += ctx.switchLabel(labelIndex).getText();
+      if(labelIndex != labelNum - 1)
+        caseString += "\n";
+      labelIndex++;
+    }
+
+    Node caseNode = new Node();
+    caseNode.setID(ID);
+    ID++;
+    caseNode.setLineNumber(ctx.start.getLine());
+    caseNode.setLineString(caseString);
+    caseNode.setType(Node.nodeType.NORMAL);
+    caseNode.setDepth(ctx.depth());    
+
+    ArrayList<Node> blockChildren = new ArrayList<Node>();
+    int blockStatementNum = ctx.blockStatement().size(); //amount of block children
+    int blockIndex = 0;
+
+    //Traverse the blockStatement children and add them to a list
+    while(blockIndex < blockStatementNum){
+      Node blockChild = visit(ctx.blockStatement(blockIndex));
+
+      if(blockIndex == 0) caseNode.addConnected(blockChild);
+
+      blockChildren.add(blockChild);
+
+      blockIndex++;
+    }
+
+    //Link the children to each other
+    for (int k = 0; k < blockChildren.size() - 1; k++) {
+      blockChildren.get(k).addConnected(blockChildren.get(k + 1));
+    }
+
+    allNodes.add(caseNode);
+
+    return caseNode; 
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   */
+  @Override 
+  public Node visitBreakStmt(JavaParser.BreakStmtContext ctx) { 
+    Token tok = ctx.getStart();
+    String lineString = getLineParam(tok, ";");
+
+    Node currentNode = new Node();
+
+    currentNode.setID(ID);
+    ID++;
+    currentNode.setLineNumber(ctx.start.getLine());
+    currentNode.setLineString(lineString);
+    currentNode.setType(Node.nodeType.BREAK);
+    currentNode.setDepth(ctx.depth());
+
+    // currentNode.printNode();
+
+    allNodes.add(currentNode);
+
+    return currentNode;
+  }
+
+  
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   */
+  @Override 
+  public Node visitContStmt(JavaParser.ContStmtContext ctx) { 
+    Token tok = ctx.getStart();
+    String lineString = getLineParam(tok, ";");
+
+    Node currentNode = new Node();
+
+    currentNode.setID(ID);
+    ID++;
+    currentNode.setLineNumber(ctx.start.getLine());
+    currentNode.setLineString(lineString);
+    currentNode.setType(Node.nodeType.CONTINUE);
+    currentNode.setDepth(ctx.depth());
+
+    // currentNode.printNode();
+
+    allNodes.add(currentNode);
+
+    return currentNode;
+  }
+
 
   /**
    * {@inheritDoc}
@@ -407,34 +581,6 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     currentNode.setDepth(ctx.depth());
 
     // currentNode.printNode();
-
-    allNodes.add(currentNode);
-
-    return currentNode;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * <p>
-   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
-   * </p>
-   */
-  @Override
-  public Node visitWhileStmt(JavaParser.WhileStmtContext ctx) {
-
-    Node currentNode = new Node();
-    currentNode.setLineNumber(ctx.getStart().getLine());
-
-    Token tok = ctx.getStart();
-    String lineString = getLineParam(tok, "{");
-
-    currentNode.setID(ID);
-    ID++;
-    currentNode.setLineString(lineString);
-    currentNode.setType(Node.nodeType.LOOP);
-    currentNode.setDepth(ctx.depth());
-    currentNode.addConnected(visit(ctx.statement()));
 
     allNodes.add(currentNode);
 
@@ -477,7 +623,8 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
    * <p>The default implementation returns the result of calling
    * {@link #visitChildren} on {@code ctx}.</p>
    */
-  @Override public Node visitSemiStmt(JavaParser.SemiStmtContext ctx) {  
+  @Override 
+  public Node visitSemiStmt(JavaParser.SemiStmtContext ctx) {  
 
     Node currentNode = new Node();
     currentNode.setID(ID);
