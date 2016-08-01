@@ -5,7 +5,7 @@ public class CFGParser {
 	public static void main( String[] args) throws Exception 
     {
 
-        ANTLRInputStream input = new ANTLRFileStream("if.java");
+        ANTLRInputStream input = new ANTLRFileStream("SwitchDemoFallThrough.java");
 
         JavaLexer lexer = new JavaLexer(input);
 
@@ -18,7 +18,6 @@ public class CFGParser {
         CFGParserVisitor visitor = new CFGParserVisitor(parser);
         
         visitor.visit(tree);
-        
         
         visitor.linkNodes();
         

@@ -33,12 +33,16 @@ public class Test{
       if(true || false){
         int e = 0;
       }
+      do {
+        System.out.println("Count is: " + count);
+        count++;
+      } while (count < 11);
     }
     if(true || true) ;
     if(true && true && true) f = 0;
     System.out.println(k);
     int u = 0;
-    for(int i = 10; i > 0; i--){
+    while(i<1){
       i++;
       i+=0;
     }

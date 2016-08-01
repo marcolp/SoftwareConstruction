@@ -30,8 +30,8 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     //Traverse the inside of the block and search for break/continue nodes
     while(!tempNode.isBlockEnd()){
-//      if(tempNode.getType() == Node.nodeType.CONTINUE) 
-//        tempNode.getConnectedTo().get(1);0
+      //      if(tempNode.getType() == Node.nodeType.CONTINUE) 
+      //        tempNode.getConnectedTo().get(1);0
     }
 
     return tempNode;
@@ -40,7 +40,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
   public void linkLoopNode(Node loopNode){
 
     if(loopNode.getConnectedTo().isEmpty()) return;
-    
+
     /*
      * Keep track of the current child. The first child will be the LOOP's 'true' child (the
      * inside of the for), which is the first child in the list (index 0)
@@ -68,7 +68,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
        */
       else if(childNode.getType() == Node.nodeType.BREAK){
         childNode.removeConnected();
-        childNode.addConnected(loopNode.getConnectedTo().get(1));
+        if(loopNode.getConnectedTo().size() > 1) childNode.addConnected(loopNode.getConnectedTo().get(1));
       }
 
       if (childNode.getConnectedTo().size() > 1){
@@ -89,13 +89,13 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     // and link exit node of the current Node to it.
     Node exitNode = elseNode.getExitNode();
     Node lastOuterChild = elseNode.getLastOuterChild();
-    
+
     // If the outer child is 
     if(lastOuterChild == null) {
       elseNode.addConnected(exitNode);
       return;
     }
-    
+
     lastOuterChild.addConnected(exitNode);
   }
 
@@ -129,18 +129,18 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     if (ifNode.getConnectedTo().size() == 3) {
 
       // If the child is an ELSE_IF node then add the exit node to the last child in its block
-//      if (ifNode.getConnectedTo().get(1).getType() == Node.nodeType.ELSE_IF) {
-        Node innerTemp = ifNode.getConnectedTo().get(1).getLastInnerChild();
-        innerTemp.addConnected(exitNode);
-//      }
-      
+      //      if (ifNode.getConnectedTo().get(1).getType() == Node.nodeType.ELSE_IF) {
+      Node innerTemp = ifNode.getConnectedTo().get(1).getLastInnerChild();
+      innerTemp.addConnected(exitNode);
+      //      }
+
       //If it is not an ELSE_IF node then it is for sure an ELSE node
-//      else{
-//        Node innerTemp = ifNode.getConnectedTo().get(1).getLastInnerChild();
-//        innerTemp.addConnected(exitNode);
-//
-//      }
-        ifNode.removeConnected();
+      //      else{
+      //        Node innerTemp = ifNode.getConnectedTo().get(1).getLastInnerChild();
+      //        innerTemp.addConnected(exitNode);
+      //
+      //      }
+      ifNode.removeConnected();
     }
 
   }
@@ -161,7 +161,6 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
   }
 
   public void linkNodes() {
-
     sortNodes();
 
     // Traverse all the current nodes
@@ -213,6 +212,10 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
   }
 
 
+
+
+
+
   /**
    * This method takes in the starting token from a given context and traverses through the tokens
    * until the given String is detected in order to stop looking for tokens. It adds them to a final
@@ -245,7 +248,6 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     return lineString;
   }
-
 
   /**
    * {@inheritDoc}
@@ -345,6 +347,47 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
   /**
    * {@inheritDoc}
    *
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   */
+  @Override 
+  public Node visitDoStmt(JavaParser.DoStmtContext ctx) {  
+    Node currentNode = new Node();
+    currentNode.setLineNumber(ctx.getStart().getLine());
+
+    Token tok = ctx.getStart();
+    String lineString = getLineParam(tok, "{");
+    lineString += "} while " + ctx.parExpression().getText();
+
+
+    System.out.println(ctx.parExpression().getText());
+
+    tok.getStopIndex();
+    currentNode.setLineString(lineString);
+    currentNode.setType(Node.nodeType.LOOP);
+    currentNode.setDepth(ctx.depth());
+    currentNode.addConnected(visit(ctx.statement()));
+    currentNode.setID(ID);
+    ID++;
+    allNodes.add(currentNode);
+
+    return currentNode;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   */
+  @Override 
+  public Node visitSwitchStmt(JavaParser.SwitchStmtContext ctx) {
+    return visitChildren(ctx); 
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * <p>
    * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
@@ -391,6 +434,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     currentNode.setLineString(lineString);
     currentNode.setType(Node.nodeType.LOOP);
     currentNode.setDepth(ctx.depth());
+    currentNode.addConnected(visit(ctx.statement()));
 
     allNodes.add(currentNode);
 
@@ -433,9 +477,8 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
    * <p>The default implementation returns the result of calling
    * {@link #visitChildren} on {@code ctx}.</p>
    */
-  @Override public Node visitSemiStmt(JavaParser.SemiStmtContext ctx) {  // We do this in order to add spaces to the line strings
-    // Otherwise all the tokens would be together
-   
+  @Override public Node visitSemiStmt(JavaParser.SemiStmtContext ctx) {  
+
     Node currentNode = new Node();
     currentNode.setID(ID);
     ID++;
@@ -451,7 +494,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
     allNodes.add(currentNode);
 
     return currentNode;
-    }
+  }
 
   /**
    * {@inheritDoc}
@@ -513,6 +556,7 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 
     return currentNode;
   }
+
 
   /**
    * This method is a helper method to avoid using returnChildren() in order to return a Node.
