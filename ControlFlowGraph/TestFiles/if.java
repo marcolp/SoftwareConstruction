@@ -49,4 +49,8 @@ public class Test{
 
     teck++;
   }
+  
+  public void print(){
+	  System.out.println("Hello");
+  }
 }

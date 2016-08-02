@@ -11,7 +11,6 @@ public class Node {
   private String lineString;
   private ArrayList<Node> connectedTo; //Node at index 0 should be the inside of a block, index 1 should be outside the block
   private nodeType type;
-  private int antlrDepth;
   private boolean isExitNode; // This means that this is where an 'if'/'for'/etc ends up in
   private boolean isBlockEnd; // This means that this node is the last one in a {} block
 
@@ -24,7 +23,6 @@ public class Node {
     lineString = null;
     connectedTo = new ArrayList<Node>();
     type = nodeType.NORMAL;
-    antlrDepth = -1;
     isExitNode = false;
     isBlockEnd = false;
   }
@@ -69,14 +67,6 @@ public class Node {
 
   public void setType(nodeType newType) {
     this.type = newType;
-  }
-
-  public int getDepth() {
-    return this.antlrDepth;
-  }
-
-  public void setDepth(int depth) {
-    this.antlrDepth = depth;
   }
 
   public boolean isExitNode() {
@@ -164,7 +154,7 @@ public class Node {
       currentChildNode = this.connectedTo.get(1);
 
     else{
-      System.out.println("Trying to traverse a node with not enough children");
+//      System.out.println("Trying to traverse a node with not enough children");
       return null;
     }
 
@@ -179,7 +169,7 @@ public class Node {
       currentNode = this.connectedTo.get(0);
 
     else{
-      System.out.println("Trying to traverse a node with no children");
+//      System.out.println("Trying to traverse a node with no children");
       return null;
     }
 
