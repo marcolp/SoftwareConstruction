@@ -5,7 +5,7 @@ import javax.swing.JFrame;
 public class CFGDriver {
 
   public static void main(String[] args) throws IOException{
-    CFGListener listener = new CFGListener("Test Files/SwitchDemoFallThrough.java");
+    CFGListener listener = new CFGListener("Test Files/BreakDemo.java");
     //		CodeHandler cl = new CodeHandler("Test Files/TestAll.java");
     //		cl.linkNodes();
     //		cl.printNodes();

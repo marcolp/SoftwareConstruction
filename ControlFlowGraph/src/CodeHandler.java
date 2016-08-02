@@ -19,12 +19,12 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   private List<Node> labels = new ArrayList<Node>();
   private int ID = 1;
 
-  public CodeHandler(String methodBody)  {
+  public CodeHandler(String methodBody) {
     lastNode = new Node();
     lastNodeFlag = false;
     breakableNode = new Stack<Node>();
-        
-//    tokens = new CommonTokenStream(lexer);
+
+    // tokens = new CommonTokenStream(lexer);
     JavaParser parser = new JavaParser(tokens);
     ParseTree tree = parser.methodDeclaration();
     CodeHandler.setTokens((CommonTokenStream) parser.getTokenStream());
@@ -34,6 +34,27 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   public void printNodes() {
     for (Node currentNode : this.allNodes) {
       currentNode.printNode();
+    }
+  }
+
+  public void createJoins() {
+    // The contents of each index represents the number of times
+    //Initialize all values to 0
+    List<Integer> nodeCount = new ArrayList<Integer>(Collections.nCopies(allNodes.size(), 0));
+    
+    int index = 0;
+    while(index < nodeCount.size()){
+      Node currentNode = allNodes.get(index);
+      
+      int childrenNum = allNodes.get(index).getConnectedTo().size();
+      int childIndex = 0; 
+      while(childIndex < childrenNum){
+        Node currentChild = currentNode.getConnectedTo().get(childIndex);
+        
+//        nodeCount.get(currentNode.getConnectedTo().get(currentChild).getID()) = 1;
+        childIndex++;
+      }
+      index++;
     }
   }
 
@@ -60,11 +81,13 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       }
     }
 
-    else {//IT IS NOW LINKED TO THE NODE BREAKING FROM. NOW LINK TO THE OUTER OF THE BREAKING NODE
-      Node currentBreakable = breakNode.getConnectedTo().get(0);
+    else {// IT IS NOW LINKED TO THE NODE BREAKING FROM. NOW LINK TO THE OUTER OF THE BREAKING NODE
+      Node currentBreakable = new Node();
+      currentBreakable = breakNode.getConnectedTo().get(0);
+      breakNode.getConnectedTo().clear();
       if (currentBreakable.getConnectedTo().size() > 1)
         breakNode.addConnected(currentBreakable.getConnectedTo().get(1));
-        breakNode.getConnectedTo().remove(currentBreakable);
+      breakNode.getConnectedTo().remove(currentBreakable);
     }
   }
 
@@ -210,12 +233,12 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   public void linkSwitchNodes(Node switchNode) {
     // connect that last child to the outside of the IF
     // The index of the last child (the exit node index)
-    if(switchNode.getConnectedTo().size() > 1){
-      
+    if (switchNode.getConnectedTo().size() > 1) {
+
     }
-    
-    else{
-      
+
+    else {
+
     }
   }
 
@@ -261,19 +284,20 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
 
     Node endNode = new Node();
     endNode.setLineString("End");
-    endNode.setID(ID); ID++;
+    endNode.setID(ID);
+    ID++;
     allNodes.add(endNode);
-    
+
     Node startNode = new Node();
     startNode.setLineString("Start");
     startNode.addConnected(allNodes.get(0));
     startNode.setID(0);
     allNodes.add(startNode);
-    
+
     lastNode.addConnected(endNode);
-    
+
     sortNodes();
-        
+
     // Traverse all the current nodes
     for (int i = 0; i < this.allNodes.size(); i++) {
 
@@ -301,10 +325,11 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       }
 
       // If the current node is a RETURN instance
-      else if (currentNode.getType() == Node.nodeType.RETURN){
+      else if (currentNode.getType() == Node.nodeType.RETURN) {
+        currentNode.getConnectedTo().clear();
         currentNode.addConnected(endNode);
       }
-      
+
       // If the current node is a LOOP node
       else if (currentNode.getType() == Node.nodeType.LOOP) {
         linkLoopNode(currentNode);
@@ -313,7 +338,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       // if the current node is a SWITCH node
       else if (currentNode.getType() == Node.nodeType.SWITCH) {
         linkSwitchNodes(currentNode);
-//        currentNode.removeConnected();
+        // currentNode.removeConnected();
       }
 
       // Otherwise our node is a NORMAL node
@@ -324,10 +349,10 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
          */
       }
     }
-    
-//   startNode.findNextBlockEnd().addConnected(endNode);
-    
-    
+
+    // startNode.findNextBlockEnd().addConnected(endNode);
+
+
   }
 
   public static void printAllTokens() {
@@ -357,52 +382,53 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * @param endChar - The indication of which token to stop at.
    * @return lineString - The tokens separated by whitespace
    */
-//  public String getLineParam(Token tok, String endChar) {
-//
-//    int index = tok.getTokenIndex();
-//    String lineString = "";
-//    String currentTokenString = "";
-//    while (!tok.getText().equals(endChar)) {
-//      tok = getTokens().get(index);
-//      
-//      lineString += tok.getText();
-//      lineString += " ";
-//      index++;
-//    }
-//
-//    // Remove the last whitespace in the line string.
-//    // If the last character is not a ')'
-//    if (endChar != ")") {
-//      if (lineString != null && lineString.length() > 0
-//          && lineString.charAt(lineString.length() - 1) == ' ')
-//        lineString = lineString.substring(0, lineString.length() - 1);
-//    }
-//    lineString += endChar;
-//
-//    return lineString;
-//  }
+  // public String getLineParam(Token tok, String endChar) {
+  //
+  // int index = tok.getTokenIndex();
+  // String lineString = "";
+  // String currentTokenString = "";
+  // while (!tok.getText().equals(endChar)) {
+  // tok = getTokens().get(index);
+  //
+  // lineString += tok.getText();
+  // lineString += " ";
+  // index++;
+  // }
+  //
+  // // Remove the last whitespace in the line string.
+  // // If the last character is not a ')'
+  // if (endChar != ")") {
+  // if (lineString != null && lineString.length() > 0
+  // && lineString.charAt(lineString.length() - 1) == ' ')
+  // lineString = lineString.substring(0, lineString.length() - 1);
+  // }
+  // lineString += endChar;
+  //
+  // return lineString;
+  // }
   public String getLineParam(Token tok, String endChar) {
 
     int index = tok.getTokenIndex();
     String lineString = "";
 
     while (!tok.getText().equals(endChar)) {
-        lineString += tok.getText();
-        lineString += " ";
-        index++;
-        tok = tokens.get(index);
+      lineString += tok.getText();
+      lineString += " ";
+      index++;
+      tok = tokens.get(index);
     }
 
     // Remove the last whitespace in the line string.
     // If the last character is not a ')'
     if (endChar != ")") {
-        if (lineString != null && lineString.length() > 0 && lineString.charAt(lineString.length() - 1) == ' ')
-            lineString = lineString.substring(0, lineString.length() - 1);
+      if (lineString != null && lineString.length() > 0
+          && lineString.charAt(lineString.length() - 1) == ' ')
+        lineString = lineString.substring(0, lineString.length() - 1);
     }
     lineString += endChar;
 
     return lineString;
-}
+  }
 
 
   /**
@@ -448,7 +474,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     // DUE TO MULTIPLE INNER ()
     // else
     // lineString += getLineParam(tok, ")");
-    lineString += "if " + ctx.parExpression().getText()+"{";// getLineParam(tok,
+    lineString += "if " + ctx.parExpression().getText() + "{";// getLineParam(tok,
     // ")");
 
     Node currentNode = new Node();
@@ -492,7 +518,8 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     currentNode.setLineNumber(ctx.getStart().getLine());
 
     Token tok = ctx.getStart();
-    // This might not work correctly if the condition has an opening parenthesis in it. Is that possible?
+    // This might not work correctly if the condition has an opening parenthesis in it. Is that
+    // possible?
     String lineString = getLineParam(tok, "{");
     currentNode.setID(ID);
     ID++;
@@ -519,8 +546,9 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     currentNode.setLineNumber(ctx.getStart().getLine());
 
     Token tok = ctx.getStart();
-    
-    // This might not work correctly if the condition has an opening parenthesis in it. Is that possible?
+
+    // This might not work correctly if the condition has an opening parenthesis in it. Is that
+    // possible?
     String lineString = getLineParam(tok, "{");
     lineString += "} while " + ctx.parExpression().getText();
 
@@ -577,12 +605,12 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    */
   @Override
   public Node visitSwitchStmt(JavaParser.SwitchStmtContext ctx) {
-  
+
     Token tok = ctx.getStart();
     String lineString = "";
-  
+
     lineString += getLineParam(tok, "{");
-  
+
     Node currentNode = new Node();
     currentNode.setLineNumber(ctx.getStart().getLine());
     currentNode.setID(ID);
@@ -593,36 +621,36 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     ArrayList<Node> groupChildren = new ArrayList<Node>();
     int groupChildrenNum = ctx.switchBlockStatementGroup().size();
     int groupIndex = 0;
-  
+
     // Traverse the SwitchBlockStatementGroup children and add them to a
     // list
     while (groupIndex < groupChildrenNum) {
       Node blockChild = visit(ctx.switchBlockStatementGroup(groupIndex));
-  
+
       groupChildren.add(blockChild);
-  
+
       groupIndex++;
     }
-  
+
     if (!groupChildren.isEmpty())
       currentNode.addConnected(groupChildren.get(0));
-  
+
     // Link the children to each other
     for (int k = 0; k < groupChildren.size() - 1; k++) {
       Node currentChild = groupChildren.get(k);
       Node nextChild = groupChildren.get(k + 1);
       currentChild.addConnected(nextChild);
-      
+
       Node lastInnerChild = currentChild.getLastInnerChild();
-      if(lastInnerChild.getType() != Node.nodeType.BREAK 
-          && lastInnerChild.getType() != Node.nodeType.CONTINUE 
+      if (lastInnerChild.getType() != Node.nodeType.BREAK
+          && lastInnerChild.getType() != Node.nodeType.CONTINUE
           && lastInnerChild.getType() != Node.nodeType.RETURN)
         lastInnerChild.addConnected(nextChild);
     }
     breakableNode.pop();
     allNodes.add(currentNode);
     return currentNode;
-  
+
   }
 
   /**
@@ -675,8 +703,8 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     for (int k = 0; k < blockChildren.size() - 1; k++) {
       blockChildren.get(k).addConnected(blockChildren.get(k + 1));
     }
-    
-    blockChildren.get(blockChildren.size()-1).setBlockEnd(true);
+
+    blockChildren.get(blockChildren.size() - 1).setBlockEnd(true);
     allNodes.add(caseNode);
 
     return caseNode;
@@ -953,13 +981,14 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       Node nextNode = childNodes.get(k + 1);
 
       if (nextNode.getType() == Node.nodeType.LABEL) {
-        currentNode.addConnected(nextNode.getConnectedTo().get(0));
+        currentNode.addConnected(nextNode.getConnectedTo().get(0));///////////////SEE HERE FOR ERROR??
         continue;
       }
 
       // Dont link BREAKS or CONTINUE nodes to whatever is next
       if (currentNode.getType() == Node.nodeType.BREAK
-          || currentNode.getType() == Node.nodeType.CONTINUE) {
+          || currentNode.getType() == Node.nodeType.CONTINUE
+          || currentNode.getType() == Node.nodeType.RETURN){
         continue;
       }
 
@@ -968,7 +997,8 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
 
     // The last child is at the end of the {} block
     childNodes.get(childNodes.size() - 1).setBlockEnd(true);
-    if(!lastNodeFlag) lastNode = childNodes.get(childNodes.size()-1);
+    if (!lastNodeFlag)
+      lastNode = childNodes.get(childNodes.size() - 1);
     return childNodes.get(0);
   }
 
