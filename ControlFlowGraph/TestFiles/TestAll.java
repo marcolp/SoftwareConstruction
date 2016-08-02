@@ -15,7 +15,9 @@ public class TestAll{
 		}
 		else if(y == x){
 			int z = y * 2;
+			z++;
 		}
+		
 		
 		for(int i = 0; i < 10; i++){
 			System.out.println("hello");
@@ -38,6 +40,8 @@ public class TestAll{
 				break;
 			}
 		}
+		
+		if(false) x++;
 	}
 	
 }

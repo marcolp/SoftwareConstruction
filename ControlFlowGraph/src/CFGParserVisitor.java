@@ -1,4 +1,3 @@
-
 /*
  * @TODO Missing try-catch statement nodes
  * @TODO Missing labeled continues/breaks
@@ -222,6 +221,12 @@ public class CFGParserVisitor extends JavaBaseVisitor<Node> {
 			normalNode.addConnected(nextNode.getConnectedTo().get(0));
 		}
 	}
+	
+	public CFG createCFG(){
+		CFG graph = new CFG(allNodes);
+		return graph;
+	}
+	
 	public void linkNodes() {
 		sortNodes();
 
