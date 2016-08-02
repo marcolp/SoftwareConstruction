@@ -40,7 +40,13 @@ public class TestAll{
 		while(j < z){
 			
 			if(j == x){
-				break;
+			  while(true){
+			    if(false || false)
+			    break;
+			    
+			    loop++;
+			  }
+			break;
 			}
 		}
 		

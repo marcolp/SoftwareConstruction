@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Stack;
 
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Token;
@@ -10,18 +11,18 @@ import org.antlr.v4.runtime.tree.ParseTree;
 
 public class CodeHandler extends JavaBaseVisitor<Node> {
 
-  private Node breakableNode; // Nodes that can contain a break/continue node
+  private Stack<Node> breakableNode; // Nodes that can contain a break/continue node
   // (e.g. loops, switches)
   private static CommonTokenStream tokens;
   private List<Node> allNodes = new ArrayList<Node>();
   private List<Node> labels = new ArrayList<Node>();
   private int ID = 0;
 
-  public CodeHandler(String pathToJavaFile) throws IOException
-  {	
+  public CodeHandler(String pathToJavaFile) throws IOException {
+    breakableNode = new Stack<Node>();
     CodeLoader cl = new CodeLoader(pathToJavaFile);
     JavaLexer lexer = new JavaLexer(cl.getJavaFile());
-    CommonTokenStream tokens = new CommonTokenStream(lexer);	
+    CommonTokenStream tokens = new CommonTokenStream(lexer);
     JavaParser parser = new JavaParser(tokens);
     ParseTree tree = parser.compilationUnit();
     CodeHandler.tokens = (CommonTokenStream) parser.getTokenStream();
@@ -57,15 +58,15 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     }
 
     else {
-      if (breakableNode.getConnectedTo().size() > 1)
-        breakNode.addConnected(breakableNode.getConnectedTo().get(1));
+      Node currentBreakable = breakableNode.pop();
+      if (currentBreakable.getConnectedTo().size() > 1)
+        breakNode.addConnected(currentBreakable.getConnectedTo().get(1));
     }
   }
 
   public void linkContinueNode(Node continueNode) {
-    continueNode.getConnectedTo().clear(); // Previous linkage is wrong
-    // (unsure where it is being
-    // done)
+    // Previous linkage is wrong (unsure where it is being done)
+    continueNode.getConnectedTo().clear();
 
     // If the CONTINUE node's length is greater than 9 which is
     // the size of "continue:" then it is a labeled continue
@@ -87,7 +88,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
 
     else
 
-      continueNode.addConnected(breakableNode);
+      continueNode.addConnected(breakableNode.pop());
   }
 
   public void linkLoopNode(Node loopNode) {
@@ -96,9 +97,8 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       return;
 
     /*
-     * Keep track of the current child. The first child will be the LOOP's
-     * 'true' child (the inside of the for), which is the first child in the
-     * list (index 0)
+     * Keep track of the current child. The first child will be the LOOP's 'true' child (the inside
+     * of the for), which is the first child in the list (index 0)
      */
     Node childNode = loopNode.getConnectedTo().get(0);
 
@@ -128,91 +128,85 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   }
 
   /**
-   * Due to the way the visitors are made, IF nodes will end up being
-   * connected to 3 nodes if it has an ELSE/ELSE_IF as part of the statement.
-   * This has to do with the implementation of 'visitBlock' and
-   * 'visitIfElseStmt' methods.
+   * Due to the way the visitors are made, IF nodes will end up being connected to 3 nodes if it has
+   * an ELSE/ELSE_IF as part of the statement. This has to do with the implementation of
+   * 'visitBlock' and 'visitIfElseStmt' methods.
    * 
-   * The 'if' node will be linked to the true statement (the inside of the
-   * if), the ELSE/ELSE_IF node, and whatever is after the ENTIRE IF statement
-   * (if, else if's, else) in that particular order.
+   * The 'if' node will be linked to the true statement (the inside of the if), the ELSE/ELSE_IF
+   * node, and whatever is after the ENTIRE IF statement (if, else if's, else) in that particular
+   * order.
    * 
-   * This simply removes the last entry in the connection list in order to
-   * remove the wrong link.
+   * This simply removes the last entry in the connection list in order to remove the wrong link.
    *
    * @param ifNode
    */
   public void linkIfNode(Node ifNode) {
 
     int numberOfChildNodes = ifNode.getConnectedTo().size();
-    
-    //Nothing to link after
-    if(numberOfChildNodes == 1) return;
-    
+
+    // Nothing to link after
+    if (numberOfChildNodes == 1)
+      return;
+
     // Traverse all the inner children (the first child) of each node
     // in order to reach the last node inside the IF
     Node lastInnerChild = ifNode.getLastInnerChild();
 
     // connect that last child to the outside of the if
-    if(numberOfChildNodes == 3){
+    if (numberOfChildNodes == 3) {
 
       Node exitNode = ifNode.getConnectedTo().get(2);
 
       exitNode.setExitNode(true);
       lastInnerChild.addConnected(exitNode);
-      
-      //Add the exit node to the last one of the second child (the ELSE_IF of else node)
+
+      // Add the exit node to the last one of the second child (the ELSE_IF of else node)
       Node temp = ifNode.getConnectedTo().get(1).getLastInnerChild();
       temp.addConnected(exitNode);
-      
+
       ifNode.removeConnected();
     }
-    
-    else if(numberOfChildNodes == 2){
+
+    else if (numberOfChildNodes == 2) {
       Node exitNode = ifNode.getConnectedTo().get(1);
 
       exitNode.setExitNode(true);
       lastInnerChild.addConnected(exitNode);
     }
-    
-//    if (numberOfChildNodes == 3) {
-//
-//      // If the child is an ELSE_IF node then add the exit node to the
-//      // last child in its block
-//      // if (ifNode.getConnectedTo().get(1).getType() ==
-//      // Node.nodeType.ELSE_IF) {
-//      Node innerTemp = ifNode.getConnectedTo().get(1).getLastInnerChild();
-//      innerTemp.addConnected(exitNode);
-//      // }
-//
-//      // If it is not an ELSE_IF node then it is for sure an ELSE node
-//      // else{
-//      // Node innerTemp =
-//      // ifNode.getConnectedTo().get(1).getLastInnerChild();
-//      // innerTemp.addConnected(exitNode);
-//      //
-//      // }
-//      ifNode.removeConnected();
-//    }
-//    if (numberOfChildNodes == 1) {
-//      ifNode.addConnected(ifNode.getLastInnerChild().getExitNode());
-//    }
-//    else if(lastInnerChild.getConnectedTo().size() == 0)
-//    {
-//      lastInnerChild.addConnected(exitNode);
-//    }
+
+    // if (numberOfChildNodes == 3) {
+    //
+    // // If the child is an ELSE_IF node then add the exit node to the
+    // // last child in its block
+    // // if (ifNode.getConnectedTo().get(1).getType() ==
+    // // Node.nodeType.ELSE_IF) {
+    // Node innerTemp = ifNode.getConnectedTo().get(1).getLastInnerChild();
+    // innerTemp.addConnected(exitNode);
+    // // }
+    //
+    // // If it is not an ELSE_IF node then it is for sure an ELSE node
+    // // else{
+    // // Node innerTemp =
+    // // ifNode.getConnectedTo().get(1).getLastInnerChild();
+    // // innerTemp.addConnected(exitNode);
+    // //
+    // // }
+    // ifNode.removeConnected();
+    // }
+    // if (numberOfChildNodes == 1) {
+    // ifNode.addConnected(ifNode.getLastInnerChild().getExitNode());
+    // }
+    // else if(lastInnerChild.getConnectedTo().size() == 0)
+    // {
+    // lastInnerChild.addConnected(exitNode);
+    // }
 
   }
 
   public void linkSwitchNodes(Node switchNode) {
-    // connect that last child to the outside of the if
-    int lastLinkIndex = switchNode.getConnectedTo().size() - 1; // The index
-    // of the
-    // last
-    // child
-    // (the exit
-    // node
-    // index)
+    // connect that last child to the outside of the IF
+    // The index of the last child (the exit node index)
+    int lastLinkIndex = switchNode.getConnectedTo().size() - 1;
     Node exitNode = switchNode.getConnectedTo().get(lastLinkIndex);
     exitNode.setExitNode(true);
   }
@@ -236,19 +230,21 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     });
   }
 
-  public void linkNormalNode(Node normalNode){
-    if(normalNode.getConnectedTo().isEmpty()) return;
+  public void linkNormalNode(Node normalNode) {
+    if (normalNode.getConnectedTo().isEmpty())
+      return;
 
     Node nextNode = normalNode.getConnectedTo().get(0);
 
-    //If the next node is a loop node and it's a do while, then change the link to the inside of the loop.
-    if(nextNode.getType() == Node.nodeType.LOOP && nextNode.getLineString().charAt(0) == 'd'){
+    // If the next node is a loop node and it's a do while, then change the link to the inside of
+    // the loop.
+    if (nextNode.getType() == Node.nodeType.LOOP && nextNode.getLineString().charAt(0) == 'd') {
       normalNode.removeConnected();
       normalNode.addConnected(nextNode.getConnectedTo().get(0));
     }
   }
 
-  public CFG createCFG(){
+  public CFG createCFG() {
     CFG graph = new CFG(allNodes);
     return graph;
   }
@@ -285,13 +281,13 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       // If the current node is a LOOP node
       else if (currentNode.getType() == Node.nodeType.LOOP) {
         linkLoopNode(currentNode);
-        breakableNode = currentNode; //////////////////////////
+        breakableNode.add(currentNode); //////////////////////////
       }
 
       // if the current node is a SWITCH node
       else if (currentNode.getType() == Node.nodeType.SWITCH) {
         linkSwitchNodes(currentNode);
-        breakableNode = currentNode; /////////////////////////////
+        breakableNode.add(currentNode); //////////////////////////
         currentNode.removeConnected();
       }
 
@@ -315,7 +311,8 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       System.out.println("This is the token string: " + tok.getText());
       System.out.println("This is the token type: " + tok.getType());
       System.out.println("This is the line number: " + tok.getLine());
-      System.out.println("This is the token start position in line: " + tok.getCharPositionInLine());
+      System.out
+          .println("This is the token start position in line: " + tok.getCharPositionInLine());
       System.out.println(tok);
       idx++;
       tok = tokens.get(idx);
@@ -323,15 +320,12 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   }
 
   /**
-   * This method takes in the starting token from a given context and
-   * traverses through the tokens until the given String is detected in order
-   * to stop looking for tokens. It adds them to a final string variable
-   * separating them with a whitespace ' '.
+   * This method takes in the starting token from a given context and traverses through the tokens
+   * until the given String is detected in order to stop looking for tokens. It adds them to a final
+   * string variable separating them with a whitespace ' '.
    * 
-   * @param tok
-   *            - The starting token of the context
-   * @param endChar
-   *            - The indication of which token to stop at.
+   * @param tok - The starting token of the context
+   * @param endChar - The indication of which token to stop at.
    * @return lineString - The tokens separated by whitespace
    */
   public String getLineParam(Token tok, String endChar) {
@@ -349,7 +343,8 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     // Remove the last whitespace in the line string.
     // If the last character is not a ')'
     if (endChar != ")") {
-      if (lineString != null && lineString.length() > 0 && lineString.charAt(lineString.length() - 1) == ' ')
+      if (lineString != null && lineString.length() > 0
+          && lineString.charAt(lineString.length() - 1) == ' ')
         lineString = lineString.substring(0, lineString.length() - 1);
     }
     lineString += endChar;
@@ -361,8 +356,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -435,8 +429,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -465,8 +458,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -497,8 +489,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -546,8 +537,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -576,8 +566,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -633,8 +622,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -661,8 +649,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -689,12 +676,12 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
-  public Node visitLocalVariableDeclarationStatement(JavaParser.LocalVariableDeclarationStatementContext ctx) {
+  public Node visitLocalVariableDeclarationStatement(
+      JavaParser.LocalVariableDeclarationStatementContext ctx) {
     Token tok = ctx.getStart();
     String lineString = getLineParam(tok, ";");
 
@@ -717,8 +704,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -747,8 +733,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -774,8 +759,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -806,8 +790,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -835,8 +818,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * {@inheritDoc}
    *
    * <p>
-   * The default implementation returns the result of calling
-   * {@link #visitChildren} on {@code ctx}.
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
    * </p>
    */
   @Override
@@ -861,8 +843,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   }
 
   /**
-   * This method is a helper method to avoid using returnChildren() in order
-   * to return a Node.
+   * This method is a helper method to avoid using returnChildren() in order to return a Node.
    */
   @Override
   public Node visitBlockStatement(JavaParser.BlockStatementContext ctx) {
@@ -884,8 +865,8 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   }
 
   /**
-   * This method is what links nodes in the same block to each other. It
-   * traverses the block children linking one to the next child.
+   * This method is what links nodes in the same block to each other. It traverses the block
+   * children linking one to the next child.
    */
   @Override
   public Node visitBlock(JavaParser.BlockContext ctx) {
@@ -913,20 +894,16 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       }
 
       // Dont link BREAKS or CONTINUE nodes to whatever is next
-      if (currentNode.getType() == Node.nodeType.BREAK || currentNode.getType() == Node.nodeType.CONTINUE) {
+      if (currentNode.getType() == Node.nodeType.BREAK
+          || currentNode.getType() == Node.nodeType.CONTINUE) {
         continue;
       }
 
       currentNode.addConnected(nextNode);
     }
 
-    childNodes.get(childNodes.size() - 1).setBlockEnd(true); // The last
-    // child is
-    // at the
-    // end of
-    // the {}
-    // block
-
+    // The last child is at the end of the {} block
+    childNodes.get(childNodes.size() - 1).setBlockEnd(true);
     return childNodes.get(0);
   }
 }
