@@ -3,7 +3,7 @@ import java.util.ArrayList;
 public class Node {
 
   public enum nodeType {
-    IF, NORMAL, LOOP, ELSE_IF, SWITCH, BREAK, CONTINUE, TAG;
+    IF, NORMAL, LOOP, ELSE_IF, SWITCH, BREAK, CONTINUE, LABEL, RETURN;
   }
 
   private int ID;
@@ -106,7 +106,8 @@ public class Node {
     System.out.println("This node's line Stirng is \"" + lineString + "\"");
     System.out.println("This node's type is " + this.type);
     // System.out.println("This node's antlr depth is: "+ this.antlrDepth);
-//    System.out.println("This node's isExitNode value: "+this.isExitNode);
+    //    System.out.println("This node's isExitNode value: "+this.isExitNode);
+    System.out.println("This node's isBlockEnd: "+ isBlockEnd);
     if (!connectedTo.isEmpty()) {
       for (Node currentNode : connectedTo) {
         if (currentNode != null)
@@ -130,13 +131,17 @@ public class Node {
     Node currentNode;
     currentNode = this.getConnectedTo().get(0);
 
-    while (!currentNode.isBlockEnd && !currentNode.getConnectedTo().isEmpty()) 
-      if(currentNode.connectedTo.size() > 1)
+    while (!currentNode.isBlockEnd && !currentNode.getConnectedTo().isEmpty()){
+
+      if(currentNode.connectedTo.size() == 3)
+        currentNode = currentNode.connectedTo.get(2);
+      
+      else if(currentNode.connectedTo.size() == 2)
         currentNode = currentNode.getConnectedTo().get(1);
 
       else
         currentNode = currentNode.getConnectedTo().get(0);
-
+    }
     return currentNode;
   }
 
@@ -154,7 +159,7 @@ public class Node {
       currentChildNode = this.connectedTo.get(1);
 
     else{
-//      System.out.println("Trying to traverse a node with not enough children");
+      //      System.out.println("Trying to traverse a node with not enough children");
       return null;
     }
 
@@ -169,7 +174,7 @@ public class Node {
       currentNode = this.connectedTo.get(0);
 
     else{
-//      System.out.println("Trying to traverse a node with no children");
+      //      System.out.println("Trying to traverse a node with no children");
       return null;
     }
 
@@ -185,5 +190,25 @@ public class Node {
 
     return currentNode;
   }
-  
+
+  //Find the end node of the current block
+  public Node findNextBlockEnd(){
+    if(isBlockEnd) return this;
+
+    nodeType currentType = this.type;
+    switch(currentType){
+      case LOOP:
+      case IF:
+      case ELSE_IF:{
+        if(this.connectedTo.size() < 2) return this;
+        else return this.getConnectedTo().get(1);
+      }
+      case NORMAL:{
+        if(this.connectedTo.size() == 1) return this.getConnectedTo().get(0).findNextBlockEnd();
+        else return this;
+      }
+    }
+    return null;
+  }
+
 }

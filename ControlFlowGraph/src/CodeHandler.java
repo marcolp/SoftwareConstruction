@@ -10,14 +10,18 @@ import org.antlr.v4.runtime.tree.ParseTree;
 
 public class CodeHandler extends JavaBaseVisitor<Node> {
 
+  private boolean lastNodeFlag;
+  private Node lastNode;
   private Stack<Node> breakableNode; // Nodes that can contain a break/continue node
   // (e.g. loops, switches)
   private static CommonTokenStream tokens;
   private List<Node> allNodes = new ArrayList<Node>();
   private List<Node> labels = new ArrayList<Node>();
-  private int ID = 0;
+  private int ID = 1;
 
   public CodeHandler(String methodBody)  {
+    lastNode = new Node();
+    lastNodeFlag = false;
     breakableNode = new Stack<Node>();
         
 //    tokens = new CommonTokenStream(lexer);
@@ -34,13 +38,14 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   }
 
   public void linkBreakNode(Node breakNode) {
-    breakNode.getConnectedTo().clear(); // Previous linkage is wrong (unsure
-    // where it is being done)
 
     // If the BREAK node's length is greater than 6 which is
     // the size of "break:" then it is a labeled break
     String breakString = breakNode.getLineString();
     if (breakString.length() > 6) {
+      breakNode.getConnectedTo().clear(); // Previous linkage is wrong (unsure
+      // where it is being done)
+
       String label = breakString.substring(6, breakString.length() - 1);
 
       // Look for a label that has the same string
@@ -55,10 +60,11 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       }
     }
 
-    else {
-      Node currentBreakable = breakableNode.pop();
+    else {//IT IS NOW LINKED TO THE NODE BREAKING FROM. NOW LINK TO THE OUTER OF THE BREAKING NODE
+      Node currentBreakable = breakNode.getConnectedTo().get(0);
       if (currentBreakable.getConnectedTo().size() > 1)
         breakNode.addConnected(currentBreakable.getConnectedTo().get(1));
+        breakNode.getConnectedTo().remove(currentBreakable);
     }
   }
 
@@ -204,9 +210,13 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   public void linkSwitchNodes(Node switchNode) {
     // connect that last child to the outside of the IF
     // The index of the last child (the exit node index)
-    int lastLinkIndex = switchNode.getConnectedTo().size() - 1;
-    Node exitNode = switchNode.getConnectedTo().get(lastLinkIndex);
-    exitNode.setExitNode(true);
+    if(switchNode.getConnectedTo().size() > 1){
+      
+    }
+    
+    else{
+      
+    }
   }
 
   public void sortNodes() {
@@ -248,8 +258,22 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   }
 
   public void linkNodes() {
-    sortNodes();
 
+    Node endNode = new Node();
+    endNode.setLineString("End");
+    endNode.setID(ID); ID++;
+    allNodes.add(endNode);
+    
+    Node startNode = new Node();
+    startNode.setLineString("Start");
+    startNode.addConnected(allNodes.get(0));
+    startNode.setID(0);
+    allNodes.add(startNode);
+    
+    lastNode.addConnected(endNode);
+    
+    sortNodes();
+        
     // Traverse all the current nodes
     for (int i = 0; i < this.allNodes.size(); i++) {
 
@@ -266,27 +290,30 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
         linkElseIfNode(currentNode);
       }
 
-      // If the current node is an BREAK instance
+      // If the current node is a BREAK instance
       else if (currentNode.getType() == Node.nodeType.BREAK) {
         linkBreakNode(currentNode);
       }
 
-      // If the current node is an CONTINUE instance
+      // If the current node is a CONTINUE instance
       else if (currentNode.getType() == Node.nodeType.CONTINUE) {
         linkContinueNode(currentNode);
       }
 
+      // If the current node is a RETURN instance
+      else if (currentNode.getType() == Node.nodeType.RETURN){
+        currentNode.addConnected(endNode);
+      }
+      
       // If the current node is a LOOP node
       else if (currentNode.getType() == Node.nodeType.LOOP) {
         linkLoopNode(currentNode);
-        breakableNode.add(currentNode); //////////////////////////
       }
 
       // if the current node is a SWITCH node
       else if (currentNode.getType() == Node.nodeType.SWITCH) {
         linkSwitchNodes(currentNode);
-        breakableNode.add(currentNode); //////////////////////////
-        currentNode.removeConnected();
+//        currentNode.removeConnected();
       }
 
       // Otherwise our node is a NORMAL node
@@ -297,6 +324,10 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
          */
       }
     }
+    
+//   startNode.findNextBlockEnd().addConnected(endNode);
+    
+    
   }
 
   public static void printAllTokens() {
@@ -461,16 +492,15 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     currentNode.setLineNumber(ctx.getStart().getLine());
 
     Token tok = ctx.getStart();
-    String lineString = getLineParam(tok, "{");// This might not work
-    // correctly if the
-    // condition has an opening
-    // parenthesis in it. Is
-    // that possible?
+    // This might not work correctly if the condition has an opening parenthesis in it. Is that possible?
+    String lineString = getLineParam(tok, "{");
     currentNode.setID(ID);
     ID++;
     currentNode.setLineString(lineString);
     currentNode.setType(Node.nodeType.LOOP);
+    breakableNode.push(currentNode);
     currentNode.addConnected(visit(ctx.statement()));
+    breakableNode.pop();
     allNodes.add(currentNode);
 
     return currentNode;
@@ -489,70 +519,22 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     currentNode.setLineNumber(ctx.getStart().getLine());
 
     Token tok = ctx.getStart();
-    String lineString = getLineParam(tok, "{");// This might not work
-    // correctly if the
-    // condition has an opening
-    // parenthesis in it. Is
-    // that possible?
+    
+    // This might not work correctly if the condition has an opening parenthesis in it. Is that possible?
+    String lineString = getLineParam(tok, "{");
     lineString += "} while " + ctx.parExpression().getText();
 
     tok.getStopIndex();
     currentNode.setLineString(lineString);
     currentNode.setType(Node.nodeType.LOOP);
+    breakableNode.push(currentNode);
     currentNode.addConnected(visit(ctx.statement()));
+    breakableNode.pop();
     currentNode.setID(ID);
     ID++;
     allNodes.add(currentNode);
 
     return currentNode;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * <p>
-   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
-   * </p>
-   */
-  @Override
-  public Node visitSwitchStmt(JavaParser.SwitchStmtContext ctx) {
-
-    Token tok = ctx.getStart();
-    String lineString = "";
-
-    lineString += getLineParam(tok, "{");
-
-    Node currentNode = new Node();
-    currentNode.setLineNumber(ctx.getStart().getLine());
-    currentNode.setID(ID);
-    ID++;
-    currentNode.setLineString(lineString);
-    currentNode.setType(Node.nodeType.SWITCH);
-
-    ArrayList<Node> groupChildren = new ArrayList<Node>();
-    int groupChildrenNum = ctx.switchBlockStatementGroup().size();
-    int groupIndex = 0;
-
-    // Traverse the SwitchBlockStatementGroup children and add them to a
-    // list
-    while (groupIndex < groupChildrenNum) {
-      Node blockChild = visit(ctx.switchBlockStatementGroup(groupIndex));
-
-      groupChildren.add(blockChild);
-
-      groupIndex++;
-    }
-
-    if (!groupChildren.isEmpty())
-      currentNode.addConnected(groupChildren.get(0));
-
-    // Link the children to each other
-    for (int k = 0; k < groupChildren.size() - 1; k++) {
-      groupChildren.get(k).addConnected(groupChildren.get(k + 1));
-    }
-    allNodes.add(currentNode);
-    return currentNode;
-
   }
 
   /**
@@ -578,10 +560,69 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     ID++;
     currentNode.setLineString(lineString);
     currentNode.setType(Node.nodeType.LOOP);
+    breakableNode.push(currentNode);
     currentNode.addConnected(visit(ctx.statement()));
+    breakableNode.pop();
     allNodes.add(currentNode);
 
     return currentNode;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>
+   * The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
+   * </p>
+   */
+  @Override
+  public Node visitSwitchStmt(JavaParser.SwitchStmtContext ctx) {
+  
+    Token tok = ctx.getStart();
+    String lineString = "";
+  
+    lineString += getLineParam(tok, "{");
+  
+    Node currentNode = new Node();
+    currentNode.setLineNumber(ctx.getStart().getLine());
+    currentNode.setID(ID);
+    ID++;
+    currentNode.setLineString(lineString);
+    currentNode.setType(Node.nodeType.SWITCH);
+    breakableNode.push(currentNode);
+    ArrayList<Node> groupChildren = new ArrayList<Node>();
+    int groupChildrenNum = ctx.switchBlockStatementGroup().size();
+    int groupIndex = 0;
+  
+    // Traverse the SwitchBlockStatementGroup children and add them to a
+    // list
+    while (groupIndex < groupChildrenNum) {
+      Node blockChild = visit(ctx.switchBlockStatementGroup(groupIndex));
+  
+      groupChildren.add(blockChild);
+  
+      groupIndex++;
+    }
+  
+    if (!groupChildren.isEmpty())
+      currentNode.addConnected(groupChildren.get(0));
+  
+    // Link the children to each other
+    for (int k = 0; k < groupChildren.size() - 1; k++) {
+      Node currentChild = groupChildren.get(k);
+      Node nextChild = groupChildren.get(k + 1);
+      currentChild.addConnected(nextChild);
+      
+      Node lastInnerChild = currentChild.getLastInnerChild();
+      if(lastInnerChild.getType() != Node.nodeType.BREAK 
+          && lastInnerChild.getType() != Node.nodeType.CONTINUE 
+          && lastInnerChild.getType() != Node.nodeType.RETURN)
+        lastInnerChild.addConnected(nextChild);
+    }
+    breakableNode.pop();
+    allNodes.add(currentNode);
+    return currentNode;
+  
   }
 
   /**
@@ -634,7 +675,8 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     for (int k = 0; k < blockChildren.size() - 1; k++) {
       blockChildren.get(k).addConnected(blockChildren.get(k + 1));
     }
-
+    
+    blockChildren.get(blockChildren.size()-1).setBlockEnd(true);
     allNodes.add(caseNode);
 
     return caseNode;
@@ -659,7 +701,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     currentNode.setLineNumber(ctx.start.getLine());
     currentNode.setLineString(lineString);
     currentNode.setType(Node.nodeType.BREAK);
-
+    currentNode.addConnected(breakableNode.peek());
     // currentNode.printNode();
 
     allNodes.add(currentNode);
@@ -686,7 +728,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     currentNode.setLineNumber(ctx.start.getLine());
     currentNode.setLineString(lineString);
     currentNode.setType(Node.nodeType.CONTINUE);
-
+    currentNode.addConnected(breakableNode.peek());
     // currentNode.printNode();
 
     allNodes.add(currentNode);
@@ -797,7 +839,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     ID++;
     currentNode.setLineNumber(ctx.start.getLine());
     currentNode.setLineString(lineString);
-    currentNode.setType(Node.nodeType.NORMAL);
+    currentNode.setType(Node.nodeType.RETURN);
 
     // currentNode.printNode();
 
@@ -853,7 +895,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
 
     currentNode.setLineNumber(ctx.start.getLine());
     currentNode.setLineString(ctx.Identifier().getText() + ":");
-    currentNode.setType(Node.nodeType.TAG);
+    currentNode.setType(Node.nodeType.LABEL);
 
     // currentNode.printNode();
 
@@ -910,7 +952,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
       Node currentNode = childNodes.get(k);
       Node nextNode = childNodes.get(k + 1);
 
-      if (nextNode.getType() == Node.nodeType.TAG) {
+      if (nextNode.getType() == Node.nodeType.LABEL) {
         currentNode.addConnected(nextNode.getConnectedTo().get(0));
         continue;
       }
@@ -926,6 +968,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
 
     // The last child is at the end of the {} block
     childNodes.get(childNodes.size() - 1).setBlockEnd(true);
+    if(!lastNodeFlag) lastNode = childNodes.get(childNodes.size()-1);
     return childNodes.get(0);
   }
 

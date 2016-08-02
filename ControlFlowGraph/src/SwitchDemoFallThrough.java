@@ -4,6 +4,7 @@ class SwitchDemoFallThrough {
         int month = 7;
         int year = 2000;
         int numDays = 0;
+
         
         switch (month) {
             case 1:
@@ -14,8 +15,7 @@ class SwitchDemoFallThrough {
             case 10:
             case 12:
                 numDays = 31;
-                year++;
-//                break;
+                break;
             case 4:
             case 6:
             case 9:
