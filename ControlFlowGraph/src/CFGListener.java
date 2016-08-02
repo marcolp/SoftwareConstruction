@@ -35,15 +35,18 @@ public class CFGListener extends JavaBaseListener{
   @Override 
   public void enterMethodDeclaration(@NotNull JavaParser.MethodDeclarationContext ctx)  {
     String methodName = "";
-    methodName += ctx.Identifier().getText();
-
+    
+    if(ctx.type() != null)methodName += ctx.type() + " ";
+    else methodName += "void ";
+    
+    methodName += ctx.Identifier().getText() + " ";
+    methodName += ctx.formalParameters().getText();
+    
     System.out.println("\n-----------LISTENING "+methodName+" METHOD-----------\n");
 
     String method = ctx.getText();
-    int index = method.indexOf(methodName);
-    method = method.substring(0, index) + " " + method.substring(index, method.length());
     
-    CodeHandler visitor = new CodeHandler(method, this.lexer);
+    CodeHandler visitor = new CodeHandler(method);
 //    System.out.println(method);
     visitor.visit(ctx);
     visitor.linkNodes();

@@ -1,11 +1,9 @@
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Stack;
 
-import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -19,11 +17,9 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   private List<Node> labels = new ArrayList<Node>();
   private int ID = 0;
 
-  public CodeHandler(String methodBody, JavaLexer newLexer)  {
+  public CodeHandler(String methodBody)  {
     breakableNode = new Stack<Node>();
-    
-    JavaLexer lexer = newLexer;
-    
+        
 //    tokens = new CommonTokenStream(lexer);
     JavaParser parser = new JavaParser(tokens);
     ParseTree tree = parser.methodDeclaration();

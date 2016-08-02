@@ -26,7 +26,7 @@ public class Visualizer  extends JFrame {
    */
   public Visualizer(String vizXml, String cfgName) {
     // JPanel title
-    super(cfgName +" method cfg visualization");
+    super(cfgName +" method CFG visualization");
     
     // Set xml string.
     xml = vizXml;  
