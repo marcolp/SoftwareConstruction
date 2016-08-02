@@ -1,10 +1,11 @@
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Stack;
 
+import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -18,14 +19,15 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   private List<Node> labels = new ArrayList<Node>();
   private int ID = 0;
 
-  public CodeHandler(String pathToJavaFile) throws IOException {
+  public CodeHandler(String methodBody, JavaLexer newLexer)  {
     breakableNode = new Stack<Node>();
-    CodeLoader cl = new CodeLoader(pathToJavaFile);
-    JavaLexer lexer = new JavaLexer(cl.getJavaFile());
-    CommonTokenStream tokens = new CommonTokenStream(lexer);
+    
+    JavaLexer lexer = newLexer;
+    
+//    tokens = new CommonTokenStream(lexer);
     JavaParser parser = new JavaParser(tokens);
-    ParseTree tree = parser.compilationUnit();
-    CodeHandler.tokens = (CommonTokenStream) parser.getTokenStream();
+    ParseTree tree = parser.methodDeclaration();
+    CodeHandler.setTokens((CommonTokenStream) parser.getTokenStream());
     visit(tree);
   }
 
@@ -302,7 +304,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
   }
 
   public static void printAllTokens() {
-    Token tok = CodeHandler.tokens.get(0);
+    Token tok = CodeHandler.getTokens().get(0);
     int idx = tok.getTokenIndex();
     while (tok.getType() != -1) {
       System.out.println("\nThis is the token index: " + idx);
@@ -315,7 +317,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
           .println("This is the token start position in line: " + tok.getCharPositionInLine());
       System.out.println(tok);
       idx++;
-      tok = tokens.get(idx);
+      tok = getTokens().get(idx);
     }
   }
 
@@ -328,29 +330,53 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
    * @param endChar - The indication of which token to stop at.
    * @return lineString - The tokens separated by whitespace
    */
+//  public String getLineParam(Token tok, String endChar) {
+//
+//    int index = tok.getTokenIndex();
+//    String lineString = "";
+//    String currentTokenString = "";
+//    while (!tok.getText().equals(endChar)) {
+//      tok = getTokens().get(index);
+//      
+//      lineString += tok.getText();
+//      lineString += " ";
+//      index++;
+//    }
+//
+//    // Remove the last whitespace in the line string.
+//    // If the last character is not a ')'
+//    if (endChar != ")") {
+//      if (lineString != null && lineString.length() > 0
+//          && lineString.charAt(lineString.length() - 1) == ' ')
+//        lineString = lineString.substring(0, lineString.length() - 1);
+//    }
+//    lineString += endChar;
+//
+//    return lineString;
+//  }
   public String getLineParam(Token tok, String endChar) {
 
     int index = tok.getTokenIndex();
     String lineString = "";
 
     while (!tok.getText().equals(endChar)) {
-      lineString += tok.getText();
-      lineString += " ";
-      index++;
-      tok = tokens.get(index);
+        lineString += tok.getText();
+        lineString += " ";
+        index++;
+        tok = tokens.get(index);
     }
 
     // Remove the last whitespace in the line string.
     // If the last character is not a ')'
     if (endChar != ")") {
-      if (lineString != null && lineString.length() > 0
-          && lineString.charAt(lineString.length() - 1) == ' ')
-        lineString = lineString.substring(0, lineString.length() - 1);
+        if (lineString != null && lineString.length() > 0 && lineString.charAt(lineString.length() - 1) == ' ')
+            lineString = lineString.substring(0, lineString.length() - 1);
     }
     lineString += endChar;
 
     return lineString;
-  }
+}
+
 
   /**
    * {@inheritDoc}
@@ -395,7 +421,7 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     // DUE TO MULTIPLE INNER ()
     // else
     // lineString += getLineParam(tok, ")");
-    lineString += "if " + ctx.parExpression().getText();// getLineParam(tok,
+    lineString += "if " + ctx.parExpression().getText()+"{";// getLineParam(tok,
     // ")");
 
     Node currentNode = new Node();
@@ -905,5 +931,13 @@ public class CodeHandler extends JavaBaseVisitor<Node> {
     // The last child is at the end of the {} block
     childNodes.get(childNodes.size() - 1).setBlockEnd(true);
     return childNodes.get(0);
+  }
+
+  public static CommonTokenStream getTokens() {
+    return tokens;
+  }
+
+  public static void setTokens(CommonTokenStream tokens) {
+    CodeHandler.tokens = tokens;
   }
 }

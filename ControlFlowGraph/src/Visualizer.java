@@ -24,9 +24,9 @@ public class Visualizer  extends JFrame {
   /** Visualizer Constructor.
    *  will take a valid xml string.
    */
-  public Visualizer(String vizXml) {
+  public Visualizer(String vizXml, String cfgName) {
     // JPanel title
-    super("Control Flow Graph Visualization");
+    super(cfgName +" method cfg visualization");
     
     // Set xml string.
     xml = vizXml;  
