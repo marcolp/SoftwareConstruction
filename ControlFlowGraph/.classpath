@@ -2,8 +2,8 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
-	<classpathentry kind="lib" path="C:/Users/Vince/workspace/ControlFlowGraphFinal/Resources/antlr-4.5.3-complete/antlr-4.5.3-complete.jar"/>
-	<classpathentry kind="lib" path="C:/Users/Vince/workspace/ControlFlowGraphFinal/Resources/commons-io-2.5/commons-io-2.5.jar"/>
-	<classpathentry kind="lib" path="C:/Users/Vince/workspace/ControlFlowGraphFinal/Resources/jgraphx/jgraphx-3.3.1.1.jar"/>
+	<classpathentry kind="lib" path="E:/Coding/git/SoftwareConstruction/ControlFlowGraph/Resources/antlr-4.5.3-complete/antlr-4.5.3-complete.jar"/>
+	<classpathentry kind="lib" path="E:/Coding/git/SoftwareConstruction/ControlFlowGraph/Resources/commons-io-2.5/commons-io-2.5.jar"/>
+	<classpathentry kind="lib" path="E:/Coding/git/SoftwareConstruction/ControlFlowGraph/Resources/jgraphx/jgraphx-3.3.1.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
